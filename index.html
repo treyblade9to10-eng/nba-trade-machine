@@ -561,7 +561,7 @@ function initStartScreen(){
   grid.innerHTML = '';
   Object.keys(TEAMS).sort().forEach(team=>{
     const players = TEAMS[team];
-    const avg = TEAM_OVR_2K[team] || Math.round(players.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/players.length);
+    const avg = calc2KTeamOvr(players);
     const star = players.reduce((best,p)=>((OVR2K[p.name]||p.ovr)>(OVR2K[best.name]||best.ovr)?p:best), players[0]);
     const btn = document.createElement('button');
     btn.className = 'start-team-btn';
@@ -850,20 +850,33 @@ function toggleRebuild(){
   save();renderRoster();evalTrade();
 }
 
+function calc2KTeamOvr(roster){
+  if(!roster.length) return 0;
+  // 2K weights starters/stars more than bench — top 8 count double, rest count once
+  const sorted = [...roster].sort((a,b)=>(OVR2K[b.name]||b.ovr)-(OVR2K[a.name]||a.ovr));
+  const top8 = sorted.slice(0,8);
+  const bench = sorted.slice(8);
+  const top8sum = top8.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)*2;
+  const benchsum = bench.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0);
+  const total = top8sum + benchsum;
+  const count = top8.length*2 + bench.length;
+  return Math.round(total/count);
+}
+
 function updateMyTeamRating(){
   const badge=document.getElementById('myTeamRating');
   if(!S.roster.length){badge.textContent='—';return;}
-  // Use 2K26 official team OVR if no trades have been made, else calculate
-  const baseOvr = TEAM_OVR_2K[S.team];
-  const calcOvr = Math.round(S.roster.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/S.roster.length);
-  // After trades, show calculated OVR with change indicator
-  if(S.trades && S.trades.length > 0){
-    const diff = calcOvr - (baseOvr||calcOvr);
+  const ovr = calc2KTeamOvr(S.roster);
+  // Show change vs original if trades made
+  if(S.trades && S.trades.length>0 && S.team){
+    const origRoster = TEAMS[S.team]||[];
+    const origOvr = calc2KTeamOvr(origRoster);
+    const diff = ovr - origOvr;
     const arrow = diff>0?` ▲${diff}`:diff<0?` ▼${Math.abs(diff)}`:'';
     const color = diff>0?'#00c853':diff<0?'#f44336':'#f5c518';
-    badge.innerHTML=`OVR ${calcOvr}<span style="font-size:.7rem;color:${color}">${arrow}</span>`;
+    badge.innerHTML=`OVR ${ovr}<span style="font-size:.7rem;color:${color}">${arrow}</span>`;
   } else {
-    badge.textContent=`OVR ${baseOvr||calcOvr}`;
+    badge.textContent=`OVR ${ovr}`;
   }
 }
 
@@ -1355,7 +1368,7 @@ function clearLog(){
 function renderStats(){
   document.getElementById('sT').textContent=S.trades.length;
   document.getElementById('sP').textContent=S.roster.length;
-  const avg2k=S.roster.length?Math.round(S.roster.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/S.roster.length):0;
+  const avg2k=S.roster.length?calc2KTeamOvr(S.roster):0;
   document.getElementById('sA').textContent=avg2k||'—';
   updateMyTeamRating();
   renderRosterTable();
