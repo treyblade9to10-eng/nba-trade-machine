@@ -688,19 +688,25 @@ function selectPick(idx){
 
 function rerollProspects(){
   if(selectedPickIdx===null) return alert('Select a pick first!');
+  window.ceilingRevealIdx = undefined;
   genProspects();
   renderProspects();
 }
 
 function renderProspects(){
   const grid = document.getElementById('prospectGrid');
-  grid.innerHTML = currentProspects.map((p,i)=>`
-    <div class="prospect-card${selectedProspect===i?' selected':''}" onclick="selectProspect(${i})">
-      <div class="prospect-name">${p.name}</div>
+  // Only one random prospect shows ceiling — picked when prospects are generated
+  if(typeof ceilingRevealIdx === 'undefined' || ceilingRevealIdx >= currentProspects.length){
+    window.ceilingRevealIdx = Math.floor(Math.random()*currentProspects.length);
+  }
+  grid.innerHTML = currentProspects.map((p,i)=>{
+    const showCeiling = i === window.ceilingRevealIdx;
+    return `<div class="prospect-card${selectedProspect===i?' selected':''}" onclick="selectProspect(${i})">
+      <div class="prospect-name">${p.name}${showCeiling?' 👁':''}${showCeiling?' <span style="font-size:.7rem;color:#4fc3f7">(Scouted)</span>':''}</div>
       <div class="prospect-pos">${p.pos} · Age ${p.age}</div>
-      <div class="prospect-ovr">OVR ${p.ovr} · Ceiling ${p.potential}</div>
-    </div>
-  `).join('');
+      <div class="prospect-ovr">OVR ${p.ovr} · Ceiling ${showCeiling?p.potential:'?'}</div>
+    </div>`;
+  }).join('');
   document.getElementById('draftBtn').disabled = selectedProspect===null;
 }
 
