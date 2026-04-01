@@ -163,7 +163,7 @@ input::placeholder{color:#555}
 
 <!-- Your Team -->
 <div class="page card" id="roster-section">
-  <h2>🏟️ My Team <span class="team-rating" id="myTeamRating">—</span></h2>
+  <h2>🏟️ My Team <span class="team-rating" id="myTeamRating">—</span> <span id="rosterSizeTag" style="font-size:.78rem;color:#888;margin-left:6px"></span></h2>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
     <button class="btn-sm" id="rebuildBtn" onclick="toggleRebuild()" style="border-color:#f57c00;color:#ff9800">🔨 Rebuild Mode</button>
   </div>
@@ -652,10 +652,14 @@ function renderDraftPage(){
     return;
   }
   draftControls.style.display = '';
+  const curSeason = S.season||2026;
   pickList.innerHTML = myPicks.map((pk,i)=>{
     const used = (S.usedPicks||[]).find(u=>u.year===pk.year&&u.round===pk.round&&u.owner===pk.owner);
+    const locked = parseInt(pk.year) > curSeason-1;
     const isSelected = selectedPickIdx===i;
-    return `<span class="pick-tag${used?' used':''}${isSelected?' selected':''}" onclick="${used?'':'selectPick('+i+')'}" style="${isSelected?'border-color:#f5c518;color:#f5c518;background:#2a2800':''}">${pk.year} ${pk.round} (${pk.owner})</span>`;
+    const style = isSelected?'border-color:#f5c518;color:#f5c518;background:#2a2800':locked?'opacity:0.45;cursor:not-allowed':'';
+    const lockIcon = locked?'🔒 ':'';
+    return `<span class="pick-tag${used?' used':''}${isSelected?' selected':''}" onclick="${(used||locked)?'':'selectPick('+i+')'}" style="${style}" title="${locked?'Unlocks in '+(pk.year-1)+'-'+String(pk.year).slice(2)+' season':''}">${lockIcon}${pk.year} ${pk.round} (${pk.owner})</span>`;
   }).join('');
   
   // Render prospects if pick selected
@@ -676,8 +680,15 @@ function renderDraftPage(){
 function selectPick(idx){
   const used = (S.usedPicks||[]).find((u,i)=>i===idx);
   if(used) return;
+  const pick = S.draftPicks[idx];
+  const currentSeason = S.season||2026;
+  // Can only use picks from previous or current year (picks "come due" each year)
+  if(parseInt(pick.year) > currentSeason-1){
+    return alert(`⏰ Can't use that pick yet! The ${pick.year} ${pick.round} comes due in the ${pick.year-1}-${String(pick.year).slice(2)} season. Sim more years to unlock it.`);
+  }
   selectedPickIdx = idx;
   currentProspects = [];
+  window.ceilingRevealIdx = undefined;
   genProspects();
   document.querySelectorAll('.pick-tag').forEach((t,i)=>{
     t.style.borderColor = i===idx ? '#f5c518' : '';
@@ -832,6 +843,12 @@ function renderRosterTable(){
   if(!el) return;
   if(!S.roster.length){el.innerHTML='<p class="empty">No roster yet.</p>';return;}
   const sorted = [...S.roster].sort((a,b)=>(OVR2K[b.name]||b.ovr)-(OVR2K[a.name]||a.ovr));
+  const sizeTag=document.getElementById('rosterSizeTag');
+  if(sizeTag){
+    const sz=S.roster.length;
+    const col=sz<14?'#f44336':sz>18?'#f44336':'#888';
+    sizeTag.innerHTML=`<span style="color:${col}">${sz}/18 players${sz<14?' ⚠️ Below minimum':''}${sz>18?' ⚠️ Over maximum':''}</span>`;
+  }
   el.innerHTML = `<table class="roster-table">
     <thead><tr><th>#</th><th>Player</th><th>POS</th><th>OVR</th><th>Age</th></tr></thead>
     <tbody>${sorted.map((p,i)=>{
@@ -1131,6 +1148,11 @@ function evalTrade() {
 // ── EXECUTE ───────────────────────────────────────────────────────────────────
 function executeTrade(){
   if(!S.team)return alert('Select your team first!');
+  // Roster size checks
+  const afterTradeSize = S.roster.length - S.sending.length + S.receiving.length;
+  if(afterTradeSize < 14) return alert(`❌ Trade rejected! Your roster would drop to ${afterTradeSize} players. NBA minimum is 14.`);
+  if(afterTradeSize > 18) return alert(`❌ Trade rejected! Your roster would go to ${afterTradeSize} players. NBA maximum is 18.`);
+  
   // Check acceptance score
   const sentP=S.sending.map(i=>S.roster[i]);
   const recvP=S.receiving;
@@ -1159,10 +1181,26 @@ function executeTrade(){
     sent,sentPicks,received:recv,recvPicks
   });
 
-  // Update roster
+  // Update YOUR roster
   const ss=new Set(S.sending);
+  const sentPlayers2=S.sending.map(i=>S.roster[i]);
   S.roster=S.roster.filter((_,i)=>!ss.has(i));
-  recv.forEach(p=>S.roster.push({name:p.name,pos:p.pos,ovr:p.ovr}));
+  recv.forEach(p=>S.roster.push({name:p.name,pos:p.pos,ovr:OVR2K[p.name]||p.ovr}));
+  
+  // Update OTHER TEAM's roster in TEAMS database
+  if(ot && TEAMS[ot]){
+    // Remove players they sent to us
+    recv.forEach(rp=>{
+      const idx=TEAMS[ot].findIndex(p=>p.name===rp.name);
+      if(idx!==-1) TEAMS[ot].splice(idx,1);
+    });
+    // Add players we sent to them
+    sentPlayers2.forEach(sp=>{
+      if(!TEAMS[ot].find(p=>p.name===sp.name)){
+        TEAMS[ot].push({name:sp.name,pos:sp.pos,ovr:OVR2K[sp.name]||sp.ovr});
+      }
+    });
+  }
 
   S.sending=[];S.sendPicks=[];S.receiving=[];S.recvPicks=[];
   save();renderRoster();renderSend();renderRecv();renderLog();renderStats();updBtn();
