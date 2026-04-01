@@ -445,6 +445,9 @@ const OVR2K = {
 'Keshon Gilbert':68,'Nickeil Alexander-Walker':74,
 };
 
+// ── 2K26 TEAM OVERALLS ───────────────────────────────────────────────────────
+const TEAM_OVR_2K = {"Oklahoma City Thunder": 85, "New York Knicks": 84, "LA Clippers": 83, "Los Angeles Lakers": 83, "Cleveland Cavaliers": 83, "Denver Nuggets": 83, "Dallas Mavericks": 83, "Houston Rockets": 83, "Indiana Pacers": 82, "Minnesota Timberwolves": 82, "Boston Celtics": 82, "Atlanta Hawks": 82, "San Antonio Spurs": 82, "Golden State Warriors": 81, "Orlando Magic": 81, "Philadelphia 76ers": 81, "Portland Trail Blazers": 81, "Memphis Grizzlies": 81, "New Orleans Pelicans": 81, "Sacramento Kings": 81, "Miami Heat": 81, "Milwaukee Bucks": 80, "Detroit Pistons": 80, "Toronto Raptors": 80, "Phoenix Suns": 79, "Charlotte Hornets": 79, "Utah Jazz": 79, "Chicago Bulls": 79, "Washington Wizards": 78, "Brooklyn Nets": 77};
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let S = {team:'',roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false,season:2026,yearsSimmed:0,draftPicks:[],draftHistory:[],usedPicks:[],careerStarted:false};
 const KEY = "nba_tm_v3";
@@ -558,7 +561,7 @@ function initStartScreen(){
   grid.innerHTML = '';
   Object.keys(TEAMS).sort().forEach(team=>{
     const players = TEAMS[team];
-    const avg = Math.round(players.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/players.length);
+    const avg = TEAM_OVR_2K[team] || Math.round(players.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/players.length);
     const star = players.reduce((best,p)=>((OVR2K[p.name]||p.ovr)>(OVR2K[best.name]||best.ovr)?p:best), players[0]);
     const btn = document.createElement('button');
     btn.className = 'start-team-btn';
@@ -850,8 +853,18 @@ function toggleRebuild(){
 function updateMyTeamRating(){
   const badge=document.getElementById('myTeamRating');
   if(!S.roster.length){badge.textContent='—';return;}
-  const avg=Math.round(S.roster.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/S.roster.length);
-  badge.textContent=`OVR ${avg}`;
+  // Use 2K26 official team OVR if no trades have been made, else calculate
+  const baseOvr = TEAM_OVR_2K[S.team];
+  const calcOvr = Math.round(S.roster.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/S.roster.length);
+  // After trades, show calculated OVR with change indicator
+  if(S.trades && S.trades.length > 0){
+    const diff = calcOvr - (baseOvr||calcOvr);
+    const arrow = diff>0?` ▲${diff}`:diff<0?` ▼${Math.abs(diff)}`:'';
+    const color = diff>0?'#00c853':diff<0?'#f44336':'#f5c518';
+    badge.innerHTML=`OVR ${calcOvr}<span style="font-size:.7rem;color:${color}">${arrow}</span>`;
+  } else {
+    badge.textContent=`OVR ${baseOvr||calcOvr}`;
+  }
 }
 
 function init(){
