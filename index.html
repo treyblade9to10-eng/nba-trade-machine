@@ -83,6 +83,9 @@ input::placeholder{color:#555}
 .rebuild-banner{background:#1a0a00;border:1px solid #f57c00;border-radius:8px;padding:8px 14px;font-size:.82rem;color:#ff9800;margin-bottom:14px;display:none}
 .rebuild-banner.active{display:block}
 
+/* PAGES */
+.page{animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 /* NAV BAR */
 .navbar{position:sticky;top:0;z-index:100;background:#111;border-bottom:1px solid #333;display:flex;gap:0;overflow-x:auto;margin-bottom:20px;padding:0 4px}
 .navbar::-webkit-scrollbar{height:3px}.navbar::-webkit-scrollbar-thumb{background:#333}
@@ -98,10 +101,10 @@ input::placeholder{color:#555}
 <body>
 <div class="container">
 <nav class="navbar">
-  <button class="nav-btn active" onclick="scrollTo('roster-section')">🏟️ My Team</button>
-  <button class="nav-btn" onclick="scrollTo('trade-section')">🔄 Trade</button>
-  <button class="nav-btn" onclick="scrollTo('sim-section')">📅 Sim Year</button>
-  <button class="nav-btn" onclick="scrollTo('log-section')">📋 History</button>
+  <button class="nav-btn active" id="nav-roster" onclick="showPage('roster')">🏟️ My Team</button>
+  <button class="nav-btn" id="nav-trade" onclick="showPage('trade')">🔄 Trade</button>
+  <button class="nav-btn" id="nav-sim" onclick="showPage('sim')">📅 Sim Year</button>
+  <button class="nav-btn" id="nav-log" onclick="showPage('log')">📋 History</button>
 </nav>
 <h1>🏀 NBA Trade Machine</h1>
 <p class="subtitle">2025-26 Season · Full Rosters · Draft Picks</p>
@@ -113,7 +116,7 @@ input::placeholder{color:#555}
 </div>
 
 <!-- Your Team -->
-<div class="card" id="roster-section">
+<div class="page card" id="roster-section">
   <h2>🏟️ Your Team <span class="team-rating" id="myTeamRating">—</span></h2>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
     <select id="myTeam" onchange="loadMyTeam()" style="max-width:280px"><option value="">— Select your team —</option></select>
@@ -125,7 +128,7 @@ input::placeholder{color:#555}
 </div>
 
 <!-- Trade Builder -->
-<div class="card" id="trade-section">
+<div class="page card" id="trade-section" style="display:none">
   <h2>🔄 Build a Trade</h2>
   <div class="trade-area">
     <!-- SEND -->
@@ -179,7 +182,7 @@ input::placeholder{color:#555}
 
 <!-- Trade Log -->
 <!-- SIM YEAR -->
-<div class="sim-card" id="sim-section">
+<div class="page sim-card" id="sim-section" style="display:none">
   <h2>📅 Sim Year</h2>
   <div class="season-badge" id="seasonBadge">2025-26 Season</div>
   <div class="sim-info">Simulate one NBA season — all player ages increase by 1. Young players develop, veterans decline. Your roster and all 30 teams update automatically.</div>
@@ -190,7 +193,7 @@ input::placeholder{color:#555}
   <div id="simLog" style="margin-top:12px;font-size:.82rem;color:#aaa"></div>
 </div>
 
-<div class="card" id="log-section">
+<div class="page card" id="log-section" style="display:none">
   <h2>📋 Trade History</h2>
   <div id="tradeLog"><p class="empty">No trades yet — start rebuilding!</p></div>
   <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
@@ -325,13 +328,28 @@ const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const load=()=>{try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);}catch(e){}};
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-// ── SCROLL NAV ────────────────────────────────────────────────────────────────
-function scrollTo(id){
-  const el=document.getElementById(id);
-  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
-  document.querySelectorAll('.nav-btn').forEach(b=>{
-    b.classList.toggle('active', b.getAttribute('onclick')===`scrollTo('${id}')`);
+// ── PAGE ROUTING ─────────────────────────────────────────────────────────────
+const PAGE_MAP = {'roster':'roster-section','trade':'trade-section','sim':'sim-section','log':'log-section'};
+let currentPage = 'roster';
+
+function showPage(page){
+  // Hide all pages
+  Object.values(PAGE_MAP).forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display='none';
   });
+  // Show target
+  const target=document.getElementById(PAGE_MAP[page]);
+  if(target){target.style.display='';target.style.animation='none';target.offsetHeight;target.style.animation='';}
+  // Update nav
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const activeBtn=document.getElementById('nav-'+page);
+  if(activeBtn)activeBtn.classList.add('active');
+  // Scroll to top
+  window.scrollTo({top:0,behavior:'smooth'});
+  currentPage=page;
+  // Save current page
+  try{sessionStorage.setItem('nba_page',page);}catch(e){}
 }
 
 // ── SIM YEAR ──────────────────────────────────────────────────────────────────
@@ -431,6 +449,8 @@ function init(){
   });
 
   load();
+  // Restore last page
+  try{const lp=sessionStorage.getItem('nba_page');if(lp&&PAGE_MAP[lp])showPage(lp);}catch(e){}
   // Update season badge
   const badge=document.getElementById('seasonBadge');
   if(badge){
