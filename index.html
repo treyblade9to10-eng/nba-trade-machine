@@ -160,7 +160,6 @@ input::placeholder{color:#555}
   <button class="nav-btn" id="nav-sim" onclick="showPage('sim')">📅 Sim Year</button>
   <button class="nav-btn" id="nav-log" onclick="showPage('log')">📋 History</button>
   <button class="nav-btn" id="nav-fa" onclick="showPage('fa')">✍️ Free Agency</button>
-  <button class="nav-btn" id="nav-standings" onclick="showPage('standings')">🏆 Standings</button>
   <button class="end-career-btn" onclick="endCareer()">⏹ End Career</button>
 </nav>
 <h1>🏀 NBA Trade Machine</h1>
@@ -458,7 +457,7 @@ const load=()=>{try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);}catc
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 // ── PAGE ROUTING ─────────────────────────────────────────────────────────────
-const PAGE_MAP = {'roster':'roster-section','trade':'trade-section','draft':'draft-section','sim':'sim-section','log':'log-section','fa':'fa-section','standings':'standings-section'};
+const PAGE_MAP = {'roster':'roster-section','trade':'trade-section','draft':'draft-section','sim':'sim-section','log':'log-section','fa':'fa-section'};
 let currentPage = 'roster';
 
 function showPage(page){
@@ -917,62 +916,9 @@ function signFA(idx){
 }
 
 // ── STANDINGS ─────────────────────────────────────────────────────────────────
-const CONFERENCES = {
-  east:['Atlanta Hawks','Boston Celtics','Brooklyn Nets','Charlotte Hornets','Chicago Bulls',
-        'Cleveland Cavaliers','Detroit Pistons','Indiana Pacers','Miami Heat','Milwaukee Bucks',
-        'New York Knicks','Orlando Magic','Philadelphia 76ers','Toronto Raptors','Washington Wizards'],
-  west:['Dallas Mavericks','Denver Nuggets','Golden State Warriors','Houston Rockets','LA Clippers',
-        'Los Angeles Lakers','Memphis Grizzlies','Minnesota Timberwolves','New Orleans Pelicans',
-        'Oklahoma City Thunder','Phoenix Suns','Portland Trail Blazers','Sacramento Kings',
-        'San Antonio Spurs','Utah Jazz']
-};
 
-function genStandings(){
-  // Generate simulated records for all 30 teams based on team OVR
-  const standings={};
-  Object.keys(TEAMS).forEach(team=>{
-    const ovr=calc2KTeamOvr(TEAMS[team]);
-    const wins=Math.round(20+(ovr-75)*1.2+Math.floor(Math.random()*15)-7);
-    const total=82;
-    const w=Math.max(10,Math.min(72,wins));
-    standings[team]={wins:w,losses:total-w,pct:(w/total).toFixed(3),team};
-  });
-  // Override with player's actual record if submitted
-  if(S.team&&S.lastRecord){
-    standings[S.team]={wins:S.lastRecord.wins,losses:S.lastRecord.losses,pct:(S.lastRecord.wins/(S.lastRecord.wins+S.lastRecord.losses)).toFixed(3),team:S.team,isYou:true};
-  }
-  return standings;
-}
 
-function renderStandings(conf='east'){
-  const el=document.getElementById('standingsTable');
-  const seasonBadge=document.getElementById('standingsSeason');
-  const s=S.season||2026;
-  if(seasonBadge) seasonBadge.textContent=`${s-1}-${String(s).slice(2)}`;
-  const standings=genStandings();
-  let teams;
-  if(conf==='all') teams=Object.keys(standings);
-  else teams=CONFERENCES[conf]||Object.keys(standings);
-  const sorted=teams.map(t=>standings[t]).filter(Boolean).sort((a,b)=>b.wins-a.wins);
-  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.83rem">
-    <thead><tr style="border-bottom:1px solid #333">
-      <th style="text-align:left;padding:8px;color:#666">#</th>
-      <th style="text-align:left;padding:8px;color:#666">Team</th>
-      <th style="text-align:center;padding:8px;color:#666">W</th>
-      <th style="text-align:center;padding:8px;color:#666">L</th>
-      <th style="text-align:center;padding:8px;color:#666">PCT</th>
-    </tr></thead>
-    <tbody>${sorted.map((t,i)=>`
-      <tr style="${t.isYou?'background:#1a0030;border:1px solid #a855f7':i%2===1?'background:#111':''}">
-        <td style="padding:8px;color:#666">${i+1}</td>
-        <td style="padding:8px;font-weight:${t.isYou?'700':'400'};color:${t.isYou?'#a855f7':''}">${t.team}${t.isYou?' 👈':''}</td>
-        <td style="text-align:center;padding:8px;color:#10b981">${t.wins}</td>
-        <td style="text-align:center;padding:8px;color:#ef4444">${t.losses}</td>
-        <td style="text-align:center;padding:8px;color:#888">${t.pct}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>`;
-}
+
 
 function toggleRebuild(){
   S.rebuildMode=!S.rebuildMode;
