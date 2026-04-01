@@ -852,14 +852,14 @@ function toggleRebuild(){
 
 function calc2KTeamOvr(roster){
   if(!roster.length) return 0;
-  // 2K weights starters/stars more than bench — top 8 count double, rest count once
+  // Top 5 players count triple, rest count once — stars carry the rating
   const sorted = [...roster].sort((a,b)=>(OVR2K[b.name]||b.ovr)-(OVR2K[a.name]||a.ovr));
-  const top8 = sorted.slice(0,8);
-  const bench = sorted.slice(8);
-  const top8sum = top8.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)*2;
-  const benchsum = bench.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0);
-  const total = top8sum + benchsum;
-  const count = top8.length*2 + bench.length;
+  const top5 = sorted.slice(0,5);
+  const rest = sorted.slice(5);
+  const top5sum = top5.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)*3;
+  const restsum = rest.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0);
+  const total = top5sum + restsum;
+  const count = top5.length*3 + rest.length;
   return Math.round(total/count);
 }
 
