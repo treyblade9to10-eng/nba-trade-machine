@@ -159,6 +159,8 @@ input::placeholder{color:#555}
   <button class="nav-btn" id="nav-draft" onclick="showPage('draft')">🎓 Draft</button>
   <button class="nav-btn" id="nav-sim" onclick="showPage('sim')">📅 Sim Year</button>
   <button class="nav-btn" id="nav-log" onclick="showPage('log')">📋 History</button>
+  <button class="nav-btn" id="nav-fa" onclick="showPage('fa')">✍️ Free Agency</button>
+  <button class="nav-btn" id="nav-standings" onclick="showPage('standings')">🏆 Standings</button>
   <button class="end-career-btn" onclick="endCareer()">⏹ End Career</button>
 </nav>
 <h1>🏀 NBA Trade Machine</h1>
@@ -449,14 +451,14 @@ const OVR2K = {
 const TEAM_OVR_2K = {"Oklahoma City Thunder": 85, "New York Knicks": 84, "LA Clippers": 83, "Los Angeles Lakers": 83, "Cleveland Cavaliers": 83, "Denver Nuggets": 83, "Dallas Mavericks": 83, "Houston Rockets": 83, "Indiana Pacers": 82, "Minnesota Timberwolves": 82, "Boston Celtics": 82, "Atlanta Hawks": 82, "San Antonio Spurs": 82, "Golden State Warriors": 81, "Orlando Magic": 81, "Philadelphia 76ers": 81, "Portland Trail Blazers": 81, "Memphis Grizzlies": 81, "New Orleans Pelicans": 81, "Sacramento Kings": 81, "Miami Heat": 81, "Milwaukee Bucks": 80, "Detroit Pistons": 80, "Toronto Raptors": 80, "Phoenix Suns": 79, "Charlotte Hornets": 79, "Utah Jazz": 79, "Chicago Bulls": 79, "Washington Wizards": 78, "Brooklyn Nets": 77};
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let S = {team:'',roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false,season:2026,yearsSimmed:0,draftPicks:[],draftHistory:[],usedPicks:[],careerStarted:false};
+let S = {team:'',roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false,season:2026,yearsSimmed:0,draftPicks:[],draftHistory:[],usedPicks:[],careerStarted:false,faPool:[],lastRecord:null};
 const KEY = "nba_tm_v3";
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const load=()=>{try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);}catch(e){}};
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 // ── PAGE ROUTING ─────────────────────────────────────────────────────────────
-const PAGE_MAP = {'roster':'roster-section','trade':'trade-section','draft':'draft-section','sim':'sim-section','log':'log-section'};
+const PAGE_MAP = {'roster':'roster-section','trade':'trade-section','draft':'draft-section','sim':'sim-section','log':'log-section','fa':'fa-section','standings':'standings-section'};
 let currentPage = 'roster';
 
 function showPage(page){
@@ -839,6 +841,137 @@ function addCustomPlayer(){
   renderRosterTable();
   renderStats();
   alert(`✅ ${name} (${pos}, OVR ${ovr}) added to your roster!`);
+}
+
+// ── FREE AGENCY ───────────────────────────────────────────────────────────────
+const FA_NAMES = ['Marcus Williams','Devon Carter','Jordan Ellis','Kyle Thomas','Damon Reed',
+  'Chris Johnson','Tyler Brooks','Andre Powell','Marcus Hill','Kevin Wright',
+  'DeShawn Brown','Tyrone Davis','Malik Scott','Brandon Lee','Cameron Young',
+  'Isaiah Moore','Darius Green','Lorenzo King','Terrell Fox','Antoine Bell'];
+
+function genFAPool(){
+  const pool=[];
+  const positions=['PG','SG','SF','PF','C'];
+  for(let i=0;i<20;i++){
+    const name=FA_NAMES[i];
+    const pos=positions[Math.floor(Math.random()*5)];
+    const age=20+Math.floor(Math.random()*16);
+    const ovr=65+Math.floor(Math.random()*22);
+    const salary=Math.round((ovr-60)*0.8+Math.random()*5);
+    pool.push({name,pos,age,ovr,salary});
+  }
+  // Add a few real released players
+  const released=[
+    {name:'Dennis Schroder',pos:'PG',age:32,ovr:76,salary:4},
+    {name:'Jordan Clarkson',pos:'PG',age:33,ovr:77,salary:5},
+    {name:'Reggie Jackson',pos:'PG',age:35,ovr:71,salary:2},
+    {name:'Andre Drummond',pos:'C',age:31,ovr:73,salary:2},
+    {name:'Mason Plumlee',pos:'C',age:35,ovr:70,salary:1},
+    {name:'Patty Mills',pos:'PG',age:37,ovr:69,salary:1},
+    {name:'Al Horford',pos:'C',age:39,ovr:73,salary:2},
+  ];
+  return [...pool,...released].sort(()=>Math.random()-.5);
+}
+
+function rerollFA(){
+  S.faPool = genFAPool();
+  save();renderFA();
+}
+
+function renderFA(){
+  const grid=document.getElementById('faGrid');
+  if(!S.team){grid.innerHTML='<p class="empty">Pick a team first</p>';return;}
+  if(!S.faPool||!S.faPool.length) S.faPool=genFAPool();
+  const filter=document.getElementById('faPosFilter')?.value||'all';
+  const players=S.faPool.filter(p=>filter==='all'||p.pos===filter);
+  if(!players.length){grid.innerHTML='<p class="empty">No free agents at that position</p>';return;}
+  grid.innerHTML=players.map((p,i)=>{
+    const age=p.age;
+    const rebuildFlag=S.rebuildMode&&age>=30?' 🔴':'';
+    return `<div class="pcard" style="border-color:#1a3a2a">
+      <div class="pname">${p.name}${rebuildFlag}</div>
+      <div class="ppos">${p.pos} · ${age}yr</div>
+      <div class="povr">${OVR2K[p.name]||p.ovr} OVR</div>
+      <div style="font-size:.72rem;color:#888;margin-top:2px">💰 ${p.salary}M/yr</div>
+      <button class="btn-sm" style="width:100%;margin-top:8px;font-size:.72rem;background:#1a3a2a;border-color:#2a5a3a" onclick="signFA(${i})">✍️ Sign</button>
+    </div>`;
+  }).join('');
+}
+
+function signFA(idx){
+  if(!S.team) return alert('Pick a team first!');
+  if(S.roster.length>=18) return alert('Roster full! Max 18 players. Cut someone first.');
+  const filter=document.getElementById('faPosFilter')?.value||'all';
+  const filtered=S.faPool.filter(p=>filter==='all'||p.pos===filter);
+  const player=filtered[idx];
+  if(!player) return;
+  // Add to roster
+  S.roster.push({name:player.name,pos:player.pos,ovr:OVR2K[player.name]||player.ovr});
+  OVR2K[player.name]=OVR2K[player.name]||player.ovr;
+  AGES[player.name]=player.age;
+  // Remove from FA pool
+  const poolIdx=S.faPool.findIndex(p=>p.name===player.name);
+  if(poolIdx!==-1)S.faPool.splice(poolIdx,1);
+  save();renderFA();renderRosterTable();renderStats();
+  alert(`✍️ Signed ${player.name} (${player.pos}, OVR ${OVR2K[player.name]||player.ovr})!`);
+}
+
+// ── STANDINGS ─────────────────────────────────────────────────────────────────
+const CONFERENCES = {
+  east:['Atlanta Hawks','Boston Celtics','Brooklyn Nets','Charlotte Hornets','Chicago Bulls',
+        'Cleveland Cavaliers','Detroit Pistons','Indiana Pacers','Miami Heat','Milwaukee Bucks',
+        'New York Knicks','Orlando Magic','Philadelphia 76ers','Toronto Raptors','Washington Wizards'],
+  west:['Dallas Mavericks','Denver Nuggets','Golden State Warriors','Houston Rockets','LA Clippers',
+        'Los Angeles Lakers','Memphis Grizzlies','Minnesota Timberwolves','New Orleans Pelicans',
+        'Oklahoma City Thunder','Phoenix Suns','Portland Trail Blazers','Sacramento Kings',
+        'San Antonio Spurs','Utah Jazz']
+};
+
+function genStandings(){
+  // Generate simulated records for all 30 teams based on team OVR
+  const standings={};
+  Object.keys(TEAMS).forEach(team=>{
+    const ovr=calc2KTeamOvr(TEAMS[team]);
+    const wins=Math.round(20+(ovr-75)*1.2+Math.floor(Math.random()*15)-7);
+    const total=82;
+    const w=Math.max(10,Math.min(72,wins));
+    standings[team]={wins:w,losses:total-w,pct:(w/total).toFixed(3),team};
+  });
+  // Override with player's actual record if submitted
+  if(S.team&&S.lastRecord){
+    standings[S.team]={wins:S.lastRecord.wins,losses:S.lastRecord.losses,pct:(S.lastRecord.wins/(S.lastRecord.wins+S.lastRecord.losses)).toFixed(3),team:S.team,isYou:true};
+  }
+  return standings;
+}
+
+function renderStandings(conf='east'){
+  const el=document.getElementById('standingsTable');
+  const seasonBadge=document.getElementById('standingsSeason');
+  const s=S.season||2026;
+  if(seasonBadge) seasonBadge.textContent=`${s-1}-${String(s).slice(2)}`;
+  const standings=genStandings();
+  let teams;
+  if(conf==='all') teams=Object.keys(standings);
+  else teams=CONFERENCES[conf]||Object.keys(standings);
+  const sorted=teams.map(t=>standings[t]).filter(Boolean).sort((a,b)=>b.wins-a.wins);
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.83rem">
+    <thead><tr style="border-bottom:1px solid #333">
+      <th style="text-align:left;padding:8px;color:#666">#</th>
+      <th style="text-align:left;padding:8px;color:#666">Team</th>
+      <th style="text-align:center;padding:8px;color:#666">W</th>
+      <th style="text-align:center;padding:8px;color:#666">L</th>
+      <th style="text-align:center;padding:8px;color:#666">PCT</th>
+    </tr></thead>
+    <tbody>${sorted.map((t,i)=>`
+      <tr style="${t.isYou?'background:#1a0030;border:1px solid #a855f7':i%2===1?'background:#111':''}">
+        <td style="padding:8px;color:#666">${i+1}</td>
+        <td style="padding:8px;font-weight:${t.isYou?'700':'400'};color:${t.isYou?'#a855f7':''}">${t.team}${t.isYou?' 👈':''}</td>
+        <td style="text-align:center;padding:8px;color:#10b981">${t.wins}</td>
+        <td style="text-align:center;padding:8px;color:#ef4444">${t.losses}</td>
+        <td style="text-align:center;padding:8px;color:#888">${t.pct}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
 }
 
 function toggleRebuild(){
