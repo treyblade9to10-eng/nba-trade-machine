@@ -67,6 +67,21 @@ input::placeholder{color:#555}
 .eval-bar{height:8px;border-radius:4px;transition:width .3s}
 .eval-warn{background:#2a1500;border:1px solid #f57c00;border-radius:8px;padding:8px 12px;font-size:.82rem;color:#ff9800;margin-top:8px}
 .eval-good{background:#001a0d;border:1px solid #00c853;border-radius:8px;padding:8px 12px;font-size:.82rem;color:#00e676;margin-top:8px}
+/* Acceptance bar */
+.accept-bar-wrap{background:#222;border-radius:8px;height:22px;margin:10px 0 4px;overflow:hidden;position:relative}
+.accept-bar{height:22px;border-radius:8px;transition:width .4s,background .4s;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#000}
+.accept-label{color:#aaa;font-size:.8rem;margin-bottom:4px}
+/* Other team roster */
+.other-roster-section{margin-top:14px}
+.other-roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px;margin-top:8px}
+.pcard.other{border-color:#2a3a4a;background:#1a2530}
+.pcard.other:hover{border-color:#4fc3f7;background:#1a2e3a}
+.pcard.other.selected{border-color:#4fc3f7;background:#0d2a3a}
+/* Team rating badge */
+.team-rating{display:inline-block;background:#2a2a2a;border:1px solid #444;border-radius:8px;padding:4px 14px;font-size:.85rem;color:#f5c518;font-weight:700;margin-left:10px}
+/* Rebuild mode */
+.rebuild-banner{background:#1a0a00;border:1px solid #f57c00;border-radius:8px;padding:8px 14px;font-size:.82rem;color:#ff9800;margin-bottom:14px;display:none}
+.rebuild-banner.active{display:block}
 </style>
 </head>
 <body>
@@ -82,9 +97,13 @@ input::placeholder{color:#555}
 
 <!-- Your Team -->
 <div class="card">
-  <h2>🏟️ Your Team</h2>
-  <select id="myTeam" onchange="loadMyTeam()"><option value="">— Select your team —</option></select>
-  <button class="btn-sm" onclick="resetTeam()" style="margin-top:10px;display:block">🔄 Reset to Default Roster</button>
+  <h2>🏟️ Your Team <span class="team-rating" id="myTeamRating">—</span></h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+    <select id="myTeam" onchange="loadMyTeam()" style="max-width:280px"></select>
+    <button class="btn-sm" onclick="resetTeam()">🔄 Reset Roster</button>
+    <button class="btn-sm" id="rebuildBtn" onclick="toggleRebuild()" style="border-color:#f57c00;color:#ff9800">🔨 Rebuild Mode</button>
+  </div>
+  <div class="rebuild-banner" id="rebuildBanner">🔨 <strong>Rebuild Mode ON</strong> — Focus on youth &amp; picks. Players 30+ flagged. Prioritize future value.</div>
   <div class="roster-grid" id="myRoster"></div>
 </div>
 
@@ -112,14 +131,14 @@ input::placeholder{color:#555}
 
     <!-- RECEIVE -->
     <div>
-      <div class="trade-col"><h3>You Receive</h3></div>
-      <div class="trade-list" id="recvList"><p class="empty">Add players from another team below</p></div>
+      <div class="trade-col"><h3>You Receive <span class="team-rating" id="otherTeamRating" style="display:none"></span></h3></div>
+      <div class="trade-list" id="recvList"><p class="empty">Click players from the other team's roster below</p></div>
       <div class="receive-controls">
         <label>Other team:</label>
         <select id="otherTeam" onchange="loadOtherTeam()"><option value="">— Pick other team —</option></select>
-        <div class="row" style="margin-top:8px">
-          <select id="otherPlayerSelect"><option value="">— Select player —</option></select>
-          <button class="btn-sm" onclick="addRecvPlayer()">+ Add</button>
+        <div class="other-roster-section">
+          <div style="color:#aaa;font-size:.78rem;margin-top:8px;margin-bottom:6px">👇 Click to add to trade:</div>
+          <div class="other-roster-grid" id="otherRosterGrid"><p class="empty">Select a team above</p></div>
         </div>
         <!-- Their picks -->
         <div class="pick-builder">
@@ -187,13 +206,112 @@ const TEAMS = {
 "Washington Wizards":[{name:"Leaky Black",pos:"SF",ovr:74},{name:"Bub Carrington",pos:"SG",ovr:74},{name:"Justin Champagnie",pos:"SF",ovr:74},{name:"Sharife Cooper",pos:"SG",ovr:74},{name:"Bilal Coulibaly",pos:"SG",ovr:76},{name:"Anthony Davis",pos:"SF",ovr:92},{name:"Kyshawn George",pos:"SF",ovr:74},{name:"Anthony Gill",pos:"SF",ovr:74},{name:"Jaden Hardy",pos:"SG",ovr:74},{name:"Tre Johnson",pos:"SG",ovr:74},{name:"Julian Reese",pos:"SF",ovr:74},{name:"Will Riley",pos:"SG",ovr:74},{name:"D&#x27;Angelo Russell",pos:"SG",ovr:74},{name:"Alex Sarr",pos:"C",ovr:74},{name:"Tristan Vukcevic",pos:"SF",ovr:74},{name:"Jamir Watkins",pos:"SG",ovr:74},{name:"Cam Whitmore",pos:"SF",ovr:74},{name:"Trae Young",pos:"SG",ovr:87}]
 };
 
+// ── 2K26 OFFICIAL RATINGS (March 31, 2026) ──────────────────────────────────
+const OVR2K = {
+'Nikola Jokic':98,'Shai Gilgeous-Alexander':98,'Giannis Antetokounmpo':97,
+'Luka Doncic':95,'Anthony Edwards':95,'Stephen Curry':94,'LeBron James':94,
+'Jayson Tatum':94,'Victor Wembanyama':94,'Kevin Durant':93,'Jalen Brunson':93,
+'Anthony Davis':93,'Donovan Mitchell':93,'Tyrese Haliburton':93,
+'Cade Cunningham':92,'Joel Embiid':92,'Kawhi Leonard':92,'Karl-Anthony Towns':92,
+'Devin Booker':91,'Ja Morant':91,'Kyrie Irving':90,'Trae Young':90,
+'Jaylen Brown':90,'Jalen Williams':90,'Jaren Jackson Jr.':89,'James Harden':89,
+'Pascal Siakam':89,'Evan Mobley':89,'Paolo Banchero':89,'Bam Adebayo':88,
+'Damian Lillard':88,'Chet Holmgren':88,'LaMelo Ball':87,'Jimmy Butler':87,
+'Darius Garland':87,'Alperen Sengun':87,'Domantas Sabonis':87,
+'Amen Thompson':87,'Derrick White':87,'Zion Williamson':87,'Ivica Zubac':87,
+'Tyler Herro':86,'Jamal Murray':86,'Tyrese Maxey':86,'Julius Randle':86,
+'Franz Wagner':86,'OG Anunoby':85,'Scottie Barnes':85,"De'Aaron Fox":85,
+'Zach LaVine':85,'Austin Reaves':85,'Jarrett Allen':84,'Mikal Bridges':84,
+'Rudy Gobert':84,'Brandon Ingram':84,'Lauri Markkanen':84,'Norman Powell':84,
+'Desmond Bane':83,'Dyson Daniels':83,'Jalen Green':83,'Myles Turner':83,
+'Coby White':83,'Deni Avdija':82,'RJ Barrett':82,'Stephon Castle':82,
+'Josh Giddey':82,'Aaron Gordon':82,'Isaiah Hartenstein':82,'Walker Kessler':82,
+'Jaden McDaniels':82,'Brandon Miller':82,'Trey Murphy III':82,
+'Michael Porter Jr.':82,'Naz Reid':82,'Jalen Suggs':82,'Cooper Flagg':82,
+'Luguentz Dort':81,'Paul George':81,'Draymond Green':81,'Josh Hart':81,
+'Jrue Holiday':81,'Jalen Johnson':81,'Herb Jones':81,'CJ McCollum':81,
+'Dejounte Murray':81,'Andrew Nembhard':81,'Aaron Nesmith':81,'Bobby Portis':81,
+'Immanuel Quickley':81,'Alexandre Sarr':81,'Shaedon Sharpe':81,
+'Anfernee Simons':81,'Alex Caruso':82,'Deandre Ayton':80,'Brook Lopez':79,
+'Khris Middleton':80,'Gary Trent Jr.':77,'Mark Williams':78,'Miles Bridges':80,
+'Bennedict Mathurin':79,'Jabari Smith Jr.':80,'Tari Eason':77,
+'Fred VanVleet':78,'Scoot Henderson':79,'Jerami Grant':78,
+'Donovan Clingan':76,'Collin Sexton':78,'Jordan Clarkson':77,
+'Bilal Coulibaly':76,'Jordan Poole':78,'Marcus Smart':77,'Jakob Poeltl':80,
+'Gradey Dick':74,'Terry Rozier':78,'GG Jackson II':77,'Santi Aldama':76,
+'Cam Thomas':83,'Nic Claxton':78,'Noah Clowney':73,'Ausar Thompson':79,
+'Isaiah Stewart':77,'Jalen Duren':82,'Jonathan Kuminga':82,'Andrew Wiggins':78,
+'Buddy Hield':77,'Moses Moody':76,'Cam Whitmore':75,'Kyle Kuzma':77,
+'Obi Toppin':75,'TJ McConnell':74,'Josh Green':75,'Josh Hart':81,
+'Bradley Beal':80,'Grayson Allen':76,'Ryan Dunn':73,'Keyonte George':74,
+'Toumani Camara':73,'Robert Williams III':74,'Kris Murray':71,'Malik Monk':77,
+'Keegan Murray':78,'Harrison Barnes':76,'Trey Lyles':73,'Isaiah Collier':73,
+'Kyle Filipowski':72,'Colby Jones':72,'Stephon Castle':82,
+'AJ Green':74,'MarJon Beauchamp':72,'Andre Jackson Jr.':70,'Taurean Prince':72,
+'Matas Buzelis':74,'Ron Holland II':75,'Tim Hardaway Jr.':74,
+'Malik Beasley':76,'Tobias Harris':77,'Simone Fontecchio':73,
+'LaMelo Ball':87,'Grant Williams':74,'Nick Richards':73,'Tre Mann':72,
+'Pat Connaughton':72,'Jericho Sims':70,'Ousmane Dieng':72,'Pete Nance':68,
+'Kevin Porter Jr.':73,'Bobby Portis':81,'Cormac Ryan':68,'Gary Harris':72,
+'Kyle Lowry':71,'Thomas Bryant':72,'Nikola Jovic':76,'Kevin Love':70,
+'Duncan Robinson':76,'Jose Alvarado':74,'Dyson Daniels':83,
+'Jordan Hawkins':72,'Trey Alexander':70,'Yves Missi':72,
+'Miles McBride':75,'Cameron Payne':71,'Tyler Kolek':72,
+'Luguentz Dort':81,'Isaiah Joe':74,'Kenrich Williams':72,'Jaylin Williams':73,
+'Aaron Wiggins':73,'Ajay Mitchell':71,'Payton Sandfort':72,'Nikola Topic':70,
+'Cason Wallace':76,'Brooks Barnhizer':68,'Goga Bitadze':72,'Cole Anthony':76,
+'Tristan da Silva':74,'Anthony Black':74,'Kentavious Caldwell-Pope':75,
+'Moritz Wagner':75,'Gary Harris':72,'Wendell Carter Jr.':78,
+'Adem Bona':70,'Jared McCain':76,'KJ Martin':73,'Eric Gordon':73,
+'Reggie Jackson':71,'Dominick Barlow':68,'MarJon Beauchamp':72,
+'Grayson Allen':76,'Jusuf Nurkic':78,'Nick Richards':73,'Monte Morris':71,
+'Mason Plumlee':70,'Oso Ighodaro':69,'Royce O'Neale':73,
+'Jabari Walker':73,'Malcolm Brogdon':75,'Deni Avdija':82,
+'Precious Achiuwa':73,'Patrick Baldwin Jr.':70,'Dylan Cardwell':68,
+'Gradey Dick':74,'Ochai Agbaji':73,'Jonathan Mogbo':71,
+'Jamal Shead':70,'Kelly Olynyk':72,'Davion Mitchell':72,
+'Ace Bailey':77,'Kennedy Chandler':71,'Cody Williams':72,
+'Taylor Hendricks':73,'Jordan McLaughlin':69,'Brice Sensabaugh':71,
+'Leaky Black':68,'Bub Carrington':72,'Justin Champagnie':70,
+'Corey Kispert':74,'Carlton Carrington':72,'Johnny Davis':69,
+'Chris Paul':74,'Devin Vassell':79,'Keldon Johnson':76,
+'Jeremy Sochan':77,'Zach Collins':74,'Tre Jones':73,
+'Julian Champagnie':71,'Sidy Cissoko':69,'Charles Bassey':70,
+'Carter Bryant':68,'Bismack Biyombo':68,'Harrison Barnes':76,
+'Bruce Brown':74,'Scottie Barnes':85,'Kobe Brown':72,
+'Nicolas Batum':72,'Bogdan Bogdanovic':76,
+'Kyrie Irving':90,'P.J. Washington':78,'Naji Marshall':74,'Max Christie':74,
+'Moussa Cisse':70,'Marvin Bagley III':71,'Spencer Dinwiddie':74,
+'Christian Braun':77,'Bruce Brown':74,'Peyton Watson':72,
+'Julian Strawther':73,'Hunter Tyson':69,'DaRon Holmes II':73,
+'Javonte Green':70,'Simi Shittu':68,'Braxton Key':67,
+'Keon Johnson':70,'Jalen Wilson':71,'Tyrese Martin':68,'RayJ Dennis':68,
+'Keshon Gilbert':68,'Nickeil Alexander-Walker':74,
+};
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let S = {team:"",roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[]};
+let S = {team:"",roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false};
 const KEY = "nba_tm_v3";
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const load=()=>{try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);}catch(e){}};
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+function toggleRebuild(){
+  S.rebuildMode=!S.rebuildMode;
+  const btn=document.getElementById('rebuildBtn');
+  const banner=document.getElementById('rebuildBanner');
+  if(S.rebuildMode){btn.style.borderColor='#f57c00';btn.style.color='#f57c00';btn.textContent='🔨 Rebuild Mode ON';banner.classList.add('active');}
+  else{btn.style.borderColor='';btn.style.color='#ff9800';btn.textContent='🔨 Rebuild Mode';banner.classList.remove('active');}
+  save();renderRoster();evalTrade();
+}
+
+function updateMyTeamRating(){
+  const badge=document.getElementById('myTeamRating');
+  if(!S.roster.length){badge.textContent='—';return;}
+  const avg=Math.round(S.roster.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/S.roster.length);
+  badge.textContent=`OVR ${avg}`;
+}
+
 function init(){
   const years=[2026,2027,2028,2029,2030,2031];
   const teams=Object.keys(TEAMS).sort();
@@ -247,7 +365,10 @@ function renderRoster(){
     const d=document.createElement('div');
     d.className='pcard'+(S.sending.includes(i)?' selected':'');
     d.onclick=()=>togSend(i);
-    d.innerHTML=`<div class="pname">${p.name}</div><div class="ppos">${p.pos}</div><div class="povr">OVR ${p.ovr}</div>`;
+    const realOvr=OVR2K[p.name]||p.ovr;
+    const age=AGES[p.name]||27;
+    const rebFlag=S.rebuildMode&&age>=30?' 🔴':'';
+    d.innerHTML=`<div class="pname">${p.name}${rebFlag}</div><div class="ppos">${p.pos} · ${age}yr</div><div class="povr">2K ${realOvr}</div>`;
     g.appendChild(d);
   });
 }
@@ -292,25 +413,34 @@ function rmSendPick(i){S.sendPicks.splice(i,1);renderSend();updBtn();evalTrade()
 
 function loadOtherTeam(){
   const t=document.getElementById('otherTeam').value;
-  const sel=document.getElementById('otherPlayerSelect');
-  sel.innerHTML='<option value="">— Select player —</option>';
-  if(!t)return;
+  const grid=document.getElementById('otherRosterGrid');
+  const ratingBadge=document.getElementById('otherTeamRating');
+  if(!t){grid.innerHTML='<p class="empty">Select a team above</p>';ratingBadge.style.display='none';return;}
+  grid.innerHTML='';
+  ratingBadge.style.display='';
+  const ovrs=TEAMS[t].map(p=>OVR2K[p.name]||p.ovr);
+  const avg=Math.round(ovrs.reduce((a,b)=>a+b,0)/ovrs.length);
+  ratingBadge.textContent=`OVR ${avg}`;
   TEAMS[t].forEach((p,i)=>{
-    const o=document.createElement('option');
-    o.value=i; o.textContent=`${p.name} (${p.pos}, OVR ${p.ovr})`;
-    sel.appendChild(o);
+    const realOvr=OVR2K[p.name]||p.ovr;
+    const inTrade=S.receiving.find(r=>r.name===p.name);
+    const d=document.createElement('div');
+    d.className='pcard other'+(inTrade?' selected':'');
+    d.onclick=()=>togRecv(t,i);
+    const age=AGES[p.name]||27;
+    const rebuildFlag=S.rebuildMode&&age>=30?' 🔴':'';
+    d.innerHTML=`<div class="pname">${p.name}${rebuildFlag}</div><div class="ppos">${p.pos} · Age ${age}</div><div class="povr">2K ${realOvr}</div>`;
+    grid.appendChild(d);
   });
 }
 
-function addRecvPlayer(){
-  const t=document.getElementById('otherTeam').value;
-  const idx=document.getElementById('otherPlayerSelect').value;
-  if(!t||idx==='')return alert('Pick a team and player!');
-  const p={...TEAMS[t][idx],fromTeam:t};
-  // avoid duplicates
-  if(S.receiving.find(r=>r.name===p.name))return alert(`${p.name} already added!`);
-  S.receiving.push(p);
-  renderRecv();updBtn();
+function togRecv(team,idx){
+  const p={...TEAMS[team][idx],ovr:OVR2K[TEAMS[team][idx].name]||TEAMS[team][idx].ovr,fromTeam:team};
+  const existing=S.receiving.findIndex(r=>r.name===p.name);
+  if(existing!==-1){S.receiving.splice(existing,1);}
+  else{S.receiving.push(p);}
+  loadOtherTeam();
+  renderRecv();updBtn();evalTrade();
 }
 
 function renderRecv(){
@@ -399,6 +529,7 @@ const SALARIES = {
 };
 
 function playerValue(p) {
+  const ovr = OVR2K[p.name] || p.ovr;
   const age = AGES[p.name] || 27;
   const demand = DEMAND[p.name] || 1.0;
   // Age factor: peak at 25-28, decline after, lower for very young
@@ -408,7 +539,7 @@ function playerValue(p) {
   else if (age <= 32) ageFactor = 1.09 - (age-28)*0.04;
   else ageFactor = 0.93 - (age-32)*0.05;
   ageFactor = Math.max(0.4, ageFactor);
-  return Math.round(p.ovr * ageFactor * demand * 10) / 10;
+  return Math.round(ovr * ageFactor * demand * 10) / 10;
 }
 
 function pickValue(pk) {
@@ -474,10 +605,30 @@ function evalTrade() {
     }
   }
 
-  if (grade) {
-    html += `<div class="eval-row" style="margin-top:8px"><span class="eval-label">Trade grade (your perspective)</span><span class="eval-val grade-${grade.color}" style="font-size:1.3rem">${grade.grade}</span></div>`;
-    const cls = diff >= 0 ? 'eval-good' : 'eval-warn';
-    html += `<div class="${cls}">${grade.msg}${Math.abs(diff) > 0 ? ` (${diff>0?'+':''}${diff.toFixed(1)} value)` : ''}</div>`;
+  // Acceptance bar
+  if (myVal > 0 || theirVal > 0) {
+    // Score: how likely the OTHER team accepts (they want good value for themselves)
+    const theirRatio = myVal / Math.max(theirVal, 0.1);
+    // Their perspective: they want to receive >= what they give
+    let acceptScore = Math.min(100, Math.round(theirRatio * 70));
+    if (!salaryOk) acceptScore = Math.min(acceptScore, 30);
+    // Also factor in demand — if you're offering a high-demand player they're more likely
+    const sendDemand = sentPlayers.reduce((a,p)=>a+(DEMAND[p.name]||1.0),0)/Math.max(sentPlayers.length,1);
+    acceptScore = Math.min(100, Math.round(acceptScore * (sendDemand * 0.3 + 0.7)));
+    
+    let barColor, verdict, barLabel;
+    if (acceptScore >= 70) { barColor='#00c853'; verdict='✅ Likely Accepted — good deal for both sides'; }
+    else if (acceptScore >= 45) { barColor='#f5c518'; verdict='🤔 Maybe — they might counter or negotiate'; }
+    else { barColor='#f44336'; verdict='❌ Probably Rejected — not enough value for them'; }
+    
+    html += `<div class="accept-label">Trade acceptance chance (their perspective):</div>`;
+    html += `<div class="accept-bar-wrap"><div class="accept-bar" style="width:${acceptScore}%;background:${barColor}">${acceptScore}%</div></div>`;
+    const cls2 = acceptScore >= 70 ? 'eval-good' : acceptScore >= 45 ? 'eval-warn' : 'eval-warn';
+    html += `<div class="${cls2}" style="${acceptScore>=70?'border-color:#00c853;background:#001a0d;color:#00e676':'acceptScore>=45?'':''}">${verdict}</div>`;
+    
+    if (grade) {
+      html += `<div class="eval-row" style="margin-top:8px"><span class="eval-label">Your side</span><span class="eval-val" style="color:${diff>=0?'#00c853':'#f44336'}">${diff>0?'+':''}${diff.toFixed(1)} value ${grade.msg}</span></div>`;
+    }
   }
 
   el.innerHTML = html;
@@ -552,7 +703,9 @@ function clearLog(){
 function renderStats(){
   document.getElementById('sT').textContent=S.trades.length;
   document.getElementById('sP').textContent=S.roster.length;
-  document.getElementById('sA').textContent=S.roster.length?Math.round(S.roster.reduce((a,p)=>a+p.ovr,0)/S.roster.length):'—';
+  const avg2k=S.roster.length?Math.round(S.roster.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/S.roster.length):0;
+  document.getElementById('sA').textContent=avg2k||'—';
+  updateMyTeamRating();
 }
 
 init();
