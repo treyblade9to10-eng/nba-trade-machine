@@ -369,7 +369,7 @@ function renderRoster(){
     const realOvr=OVR2K[p.name]||p.ovr;
     const age=AGES[p.name]||27;
     const rebFlag=S.rebuildMode&&age>=30?' 🔴':'';
-    d.innerHTML=`<div class="pname">${p.name}${rebFlag}</div><div class="ppos">${p.pos} · ${age}yr</div><div class="povr">2K ${realOvr}</div>`;
+    d.innerHTML=`<div class="pname">${p.name}${rebFlag}</div><div class="ppos">${p.pos} · ${age}yr</div><div class="povr">${realOvr}</div>`;
     g.appendChild(d);
   });
 }
@@ -430,7 +430,7 @@ function loadOtherTeam(){
     d.onclick=()=>togRecv(t,i);
     const age=AGES[p.name]||27;
     const rebuildFlag=S.rebuildMode&&age>=30?' 🔴':'';
-    d.innerHTML=`<div class="pname">${p.name}${rebuildFlag}</div><div class="ppos">${p.pos} · Age ${age}</div><div class="povr">2K ${realOvr}</div>`;
+    d.innerHTML=`<div class="pname">${p.name}${rebuildFlag}</div><div class="ppos">${p.pos} · Age ${age}</div><div class="povr">${realOvr}</div>`;
     grid.appendChild(d);
   });
 }
@@ -640,6 +640,22 @@ function evalTrade() {
 // ── EXECUTE ───────────────────────────────────────────────────────────────────
 function executeTrade(){
   if(!S.team)return alert('Select your team first!');
+  // Check acceptance score
+  const sentP=S.sending.map(i=>S.roster[i]);
+  const recvP=S.receiving;
+  const myV=sentP.reduce((a,p)=>a+playerValue(p),0)+S.sendPicks.reduce((a,pk)=>a+pickValue(pk),0);
+  const thV=recvP.reduce((a,p)=>a+playerValue(p),0)+S.recvPicks.reduce((a,pk)=>a+pickValue(pk),0);
+  const theirRatio=myV/Math.max(thV,0.1);
+  const mySal=sentP.reduce((a,p)=>a+(SALARIES[p.name]||p.ovr*0.4),0);
+  const thSal=recvP.reduce((a,p)=>a+(SALARIES[p.name]||p.ovr*0.4),0);
+  const salOk=mySal===0||thSal===0||thSal<=mySal*1.25+5;
+  const sendDem=sentP.reduce((a,p)=>a+(DEMAND[p.name]||1.0),0)/Math.max(sentP.length,1);
+  let score=Math.min(100,Math.round(theirRatio*70));
+  if(!salOk)score=Math.min(score,30);
+  score=Math.min(100,Math.round(score*(sendDem*0.3+0.7)));
+  if(score<80){
+    return alert(`❌ Trade rejected! Acceptance is only ${score}% — the other team said no. Offer more value to get above 80%.`);
+  }
   const ot=document.getElementById('otherTeam').value||'Unknown Team';
   const sent=S.sending.map(i=>({...S.roster[i]}));
   const sentPicks=[...S.sendPicks];
