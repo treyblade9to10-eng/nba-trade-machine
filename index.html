@@ -99,7 +99,7 @@ input::placeholder{color:#555}
 <div class="card">
   <h2>🏟️ Your Team <span class="team-rating" id="myTeamRating">—</span></h2>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-    <select id="myTeam" onchange="loadMyTeam()" style="max-width:280px"></select>
+    <select id="myTeam" onchange="loadMyTeam()" style="max-width:280px"><option value="">— Select your team —</option></select>
     <button class="btn-sm" onclick="resetTeam()">🔄 Reset Roster</button>
     <button class="btn-sm" id="rebuildBtn" onclick="toggleRebuild()" style="border-color:#f57c00;color:#ff9800">🔨 Rebuild Mode</button>
   </div>
@@ -319,6 +319,7 @@ function init(){
   // Populate team selects
   ['myTeam','otherTeam','sendPickOwner','recvPickOwner'].forEach(id=>{
     const el=document.getElementById(id);
+    if(!el)return;
     teams.forEach(t=>{
       const o=document.createElement('option');
       o.value=t; o.textContent=t;
