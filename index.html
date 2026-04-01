@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NBA Trade Machine 🏀</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0a0a0a;color:#eee;min-height:100vh;padding:20px}
+h1{text-align:center;font-size:2rem;color:#f5c518;margin-bottom:4px}
+.subtitle{text-align:center;color:#888;margin-bottom:20px;font-size:.9rem}
+.container{max-width:1100px;margin:0 auto}
+.card{background:#1a1a1a;border-radius:12px;padding:20px;margin-bottom:20px}
+.card h2{color:#f5c518;margin-bottom:14px;font-size:1.1rem}
+select,input[type=text]{background:#2a2a2a;color:#eee;border:1px solid #444;border-radius:8px;padding:9px 12px;font-size:.9rem;cursor:pointer}
+select{width:100%}
+input[type=text]{width:100%}
+input::placeholder{color:#555}
+.roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-top:12px}
+.pcard{background:#252525;border-radius:8px;padding:11px;border:1px solid #333;cursor:pointer;transition:all .15s;user-select:none}
+.pcard:hover{border-color:#f5c518;background:#2a2800}
+.pcard.selected{border-color:#f5c518;background:#2e2a00}
+.pcard.pick-card{border-color:#3a3a00;background:#1e1e00}
+.pcard.pick-card.selected{border-color:#f5c518;background:#2e2a00}
+.pname{font-weight:700;font-size:.85rem;line-height:1.2}
+.ppos{color:#888;font-size:.72rem;margin-top:2px}
+.povr{color:#f5c518;font-size:.78rem;margin-top:3px}
+.trade-area{display:grid;grid-template-columns:1fr 60px 1fr;gap:12px;align-items:start}
+.trade-col h3{color:#aaa;font-size:.85rem;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+.trade-list{min-height:60px;background:#252525;border-radius:8px;padding:10px;border:1px dashed #444}
+.trade-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#333;border-radius:6px;margin-bottom:6px;font-size:.82rem}
+.trade-item.pick-item{background:#2a2800;border:1px solid #555}
+.trade-item span{flex:1;padding-right:6px}
+.trade-item button{background:none;border:none;color:#f5c518;cursor:pointer;font-size:1rem;line-height:1;flex-shrink:0}
+.arrow{font-size:2rem;color:#f5c518;display:flex;align-items:center;justify-content:center;padding-top:24px}
+.receive-controls{margin-top:12px}
+.receive-controls label{color:#aaa;font-size:.8rem;display:block;margin-bottom:5px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.row select,.row input{flex:1;min-width:100px}
+.btn{background:#f5c518;color:#000;border:none;border-radius:8px;padding:9px 18px;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
+.btn:hover{background:#ffd740}
+.btn:disabled{background:#333;color:#666;cursor:not-allowed}
+.btn-sm{background:#333;color:#eee;border:1px solid #555;border-radius:7px;padding:7px 14px;font-size:.85rem;cursor:pointer}
+.btn-sm:hover{background:#444}
+.btn-red{background:#b00020;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.75rem;float:right}
+.btn-red:hover{background:#d00030}
+.actions{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.tag{display:inline-block;background:#2a2a2a;border:1px solid #444;border-radius:6px;padding:2px 10px;font-size:.75rem;color:#aaa;margin-left:8px}
+.empty{color:#555;font-size:.82rem;font-style:italic}
+.log-entry{background:#252525;border-radius:8px;padding:11px 14px;margin-bottom:10px;border-left:4px solid #f5c518;font-size:.85rem;overflow:hidden}
+.log-entry.pick-trade{border-left-color:#888}
+.log-meta{color:#666;font-size:.73rem;margin-top:5px}
+.stats-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.stat{background:#1a1a1a;border-radius:10px;padding:12px 16px;flex:1;min-width:100px;text-align:center}
+.stat-n{font-size:1.8rem;font-weight:700;color:#f5c518}
+.stat-l{font-size:.72rem;color:#888;margin-top:2px}
+.pick-builder{margin-top:10px;padding:10px;background:#1e1e00;border-radius:8px;border:1px solid #3a3a00}
+.pick-builder label{color:#aaa;font-size:.8rem;display:block;margin-bottom:5px}
+.section-divider{color:#555;font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;margin:10px 0 6px;border-top:1px solid #333;padding-top:8px}
+.trade-eval{margin-top:14px;background:#111;border-radius:10px;padding:14px;border:1px solid #333}
+.trade-eval h3{color:#f5c518;font-size:.9rem;margin-bottom:10px}
+.eval-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:.85rem}
+.eval-label{color:#888}
+.eval-val{font-weight:700}
+.grade-A{color:#00e676}.grade-B{color:#69f0ae}.grade-C{color:#f5c518}.grade-D{color:#ff9800}.grade-F{color:#f44336}
+.eval-bar-wrap{background:#222;border-radius:4px;height:8px;margin:4px 0 10px;overflow:hidden}
+.eval-bar{height:8px;border-radius:4px;transition:width .3s}
+.eval-warn{background:#2a1500;border:1px solid #f57c00;border-radius:8px;padding:8px 12px;font-size:.82rem;color:#ff9800;margin-top:8px}
+.eval-good{background:#001a0d;border:1px solid #00c853;border-radius:8px;padding:8px 12px;font-size:.82rem;color:#00e676;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🏀 NBA Trade Machine</h1>
+<p class="subtitle">2025-26 Season · Full Rosters · Draft Picks</p>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-n" id="sT">0</div><div class="stat-l">Trades</div></div>
+  <div class="stat"><div class="stat-n" id="sP">0</div><div class="stat-l">Roster Size</div></div>
+  <div class="stat"><div class="stat-n" id="sA">—</div><div class="stat-l">Avg OVR</div></div>
+</div>
+
+<!-- Your Team -->
+<div class="card">
+  <h2>🏟️ Your Team</h2>
+  <select id="myTeam" onchange="loadMyTeam()"><option value="">— Select your team —</option></select>
+  <button class="btn-sm" onclick="resetTeam()" style="margin-top:10px;display:block">🔄 Reset to Default Roster</button>
+  <div class="roster-grid" id="myRoster"></div>
+</div>
+
+<!-- Trade Builder -->
+<div class="card">
+  <h2>🔄 Build a Trade</h2>
+  <div class="trade-area">
+    <!-- SEND -->
+    <div>
+      <div class="trade-col"><h3>You Send</h3></div>
+      <div class="trade-list" id="sendList"><p class="empty">Click players on your roster above</p></div>
+      <!-- Your picks to send -->
+      <div class="pick-builder" style="margin-top:10px">
+        <label>Add a draft pick to send:</label>
+        <div class="row">
+          <select id="sendPickYear"><option value="">Year</option></select>
+          <select id="sendPickRound"><option value="">Round</option><option>1st Round</option><option>2nd Round</option></select>
+          <select id="sendPickOwner"><option value="">Pick belongs to...</option></select>
+        </div>
+        <button class="btn-sm" onclick="addSendPick()">+ Add Pick</button>
+      </div>
+    </div>
+
+    <div class="arrow">⇌</div>
+
+    <!-- RECEIVE -->
+    <div>
+      <div class="trade-col"><h3>You Receive</h3></div>
+      <div class="trade-list" id="recvList"><p class="empty">Add players from another team below</p></div>
+      <div class="receive-controls">
+        <label>Other team:</label>
+        <select id="otherTeam" onchange="loadOtherTeam()"><option value="">— Pick other team —</option></select>
+        <div class="row" style="margin-top:8px">
+          <select id="otherPlayerSelect"><option value="">— Select player —</option></select>
+          <button class="btn-sm" onclick="addRecvPlayer()">+ Add</button>
+        </div>
+        <!-- Their picks -->
+        <div class="pick-builder">
+          <label>Add a draft pick to receive:</label>
+          <div class="row">
+            <select id="recvPickYear"><option value="">Year</option></select>
+            <select id="recvPickRound"><option value="">Round</option><option>1st Round</option><option>2nd Round</option></select>
+            <select id="recvPickOwner"><option value="">Pick belongs to...</option></select>
+          </div>
+          <button class="btn-sm" onclick="addRecvPick()">+ Add Pick</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn" id="execBtn" onclick="executeTrade()" disabled>✅ Execute Trade</button>
+    <button class="btn-sm" onclick="clearTrade()">❌ Clear</button>
+  </div>
+  <div class="trade-eval" id="tradeEval" style="display:none"></div>
+</div>
+
+<!-- Trade Log -->
+<div class="card">
+  <h2>📋 Trade History</h2>
+  <div id="tradeLog"><p class="empty">No trades yet — start rebuilding!</p></div>
+  <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn-sm" onclick="undoLast()">↩️ Undo Last</button>
+    <button class="btn-sm" onclick="clearLog()">🗑️ Clear History</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ── 2025-26 ROSTERS (live from ESPN, March 2026) ─────────────────────────────
+const TEAMS = {
+"Atlanta Hawks":[{name:"Nickeil Alexander-Walker",pos:"SG",ovr:74},{name:"Dyson Daniels",pos:"SG",ovr:74},{name:"RayJ Dennis",pos:"SG",ovr:74},{name:"Keshon Gilbert",pos:"SG",ovr:74},{name:"Mouhamed Gueye",pos:"SF",ovr:74},{name:"Buddy Hield",pos:"SG",ovr:74},{name:"Caleb Houstan",pos:"SG",ovr:74},{name:"Jalen Johnson",pos:"SF",ovr:74},{name:"Corey Kispert",pos:"SF",ovr:74},{name:"Christian Koloko",pos:"C",ovr:74},{name:"Jonathan Kuminga",pos:"SF",ovr:74},{name:"Jock Landale",pos:"C",ovr:74},{name:"CJ McCollum",pos:"SG",ovr:79},{name:"Asa Newell",pos:"SF",ovr:74},{name:"Onyeka Okongwu",pos:"SF",ovr:74},{name:"Zaccharie Risacher",pos:"SF",ovr:74},{name:"Gabe Vincent",pos:"SG",ovr:74},{name:"Keaton Wallace",pos:"SG",ovr:74}],
+"Boston Celtics":[{name:"Charles Bassey",pos:"C",ovr:74},{name:"Jaylen Brown",pos:"SG",ovr:89},{name:"Luka Garza",pos:"C",ovr:74},{name:"Hugo Gonzalez",pos:"SG",ovr:74},{name:"Ron Harper Jr.",pos:"SG",ovr:74},{name:"Sam Hauser",pos:"SF",ovr:74},{name:"Payton Pritchard",pos:"SG",ovr:74},{name:"Neemias Queta",pos:"C",ovr:74},{name:"Baylor Scheierman",pos:"SG",ovr:74},{name:"Max Shulga",pos:"SG",ovr:74},{name:"Jayson Tatum",pos:"SF",ovr:95},{name:"John Tonje",pos:"SG",ovr:74},{name:"Nikola Vucevic",pos:"C",ovr:74},{name:"Jordan Walsh",pos:"SG",ovr:74},{name:"Derrick White",pos:"SG",ovr:74},{name:"Amari Williams",pos:"SF",ovr:74}],
+"Brooklyn Nets":[{name:"Ochai Agbaji",pos:"SG",ovr:74},{name:"Nic Claxton",pos:"C",ovr:74},{name:"Noah Clowney",pos:"SF",ovr:74},{name:"Egor Demin",pos:"SG",ovr:74},{name:"Tyson Etienne",pos:"SG",ovr:74},{name:"Chaney Johnson",pos:"SF",ovr:74},{name:"E.J. Liddell",pos:"SF",ovr:74},{name:"Terance Mann",pos:"SG",ovr:74},{name:"Josh Minott",pos:"SF",ovr:74},{name:"Michael Porter Jr.",pos:"SF",ovr:74},{name:"Drake Powell",pos:"SG",ovr:74},{name:"Ben Saraf",pos:"SG",ovr:74},{name:"Day&#x27;Ron Sharpe",pos:"C",ovr:74},{name:"Malachi Smith",pos:"SG",ovr:74},{name:"Nolan Traore",pos:"SG",ovr:74},{name:"Ziaire Williams",pos:"SF",ovr:74},{name:"Jalen Wilson",pos:"SF",ovr:74},{name:"Danny Wolf",pos:"SF",ovr:74}],
+"Charlotte Hornets":[{name:"LaMelo Ball",pos:"SG",ovr:86},{name:"Miles Bridges",pos:"SF",ovr:80},{name:"Pat Connaughton",pos:"SG",ovr:74},{name:"Moussa Diabate",pos:"SF",ovr:74},{name:"Tosan Evbuomwan",pos:"SF",ovr:74},{name:"Josh Green",pos:"SG",ovr:74},{name:"PJ Hall",pos:"C",ovr:74},{name:"Sion James",pos:"SG",ovr:74},{name:"Ryan Kalkbrenner",pos:"C",ovr:74},{name:"Kon Knueppel",pos:"SG",ovr:74},{name:"Tre Mann",pos:"SG",ovr:74},{name:"Liam McNeeley",pos:"SG",ovr:74},{name:"Brandon Miller",pos:"SF",ovr:82},{name:"Antonio Reeves",pos:"SG",ovr:74},{name:"Tidjane Salaun",pos:"SF",ovr:74},{name:"Xavier Tillman",pos:"SF",ovr:74},{name:"Coby White",pos:"SG",ovr:81},{name:"Grant Williams",pos:"SF",ovr:74}],
+"Chicago Bulls":[{name:"Matas Buzelis",pos:"SF",ovr:74},{name:"Zach Collins",pos:"SF",ovr:74},{name:"Rob Dillingham",pos:"SG",ovr:74},{name:"Noa Essengue",pos:"SF",ovr:74},{name:"Josh Giddey",pos:"SG",ovr:80},{name:"Tre Jones",pos:"SG",ovr:74},{name:"Yuki Kawamura",pos:"SG",ovr:74},{name:"Mac McClung",pos:"SG",ovr:74},{name:"Leonard Miller",pos:"SF",ovr:74},{name:"Isaac Okoro",pos:"SF",ovr:74},{name:"Lachlan Olbrich",pos:"C",ovr:74},{name:"Nick Richards",pos:"C",ovr:74},{name:"Collin Sexton",pos:"SG",ovr:78},{name:"Anfernee Simons",pos:"SG",ovr:80},{name:"Jalen Smith",pos:"SF",ovr:74},{name:"Patrick Williams",pos:"SF",ovr:74},{name:"Guerschon Yabusele",pos:"SF",ovr:74}],
+"Cleveland Cavaliers":[{name:"Jarrett Allen",pos:"C",ovr:74},{name:"Thomas Bryant",pos:"C",ovr:74},{name:"Keon Ellis",pos:"SG",ovr:74},{name:"Tristan Enaruna",pos:"SF",ovr:74},{name:"James Harden",pos:"SG",ovr:83},{name:"Sam Merrill",pos:"SG",ovr:74},{name:"Riley Minix",pos:"SF",ovr:74},{name:"Donovan Mitchell",pos:"SG",ovr:91},{name:"Evan Mobley",pos:"C",ovr:87},{name:"Larry Nance Jr.",pos:"SF",ovr:74},{name:"Craig Porter Jr.",pos:"SG",ovr:74},{name:"Tyrese Proctor",pos:"SG",ovr:74},{name:"Olivier Sarr",pos:"SF",ovr:74},{name:"Dennis Schroder",pos:"SG",ovr:74},{name:"Max Strus",pos:"SG",ovr:74},{name:"Nae&#x27;Qwan Tomlin",pos:"SF",ovr:74},{name:"Jaylon Tyson",pos:"SG",ovr:74},{name:"Dean Wade",pos:"SF",ovr:74}],
+"Dallas Mavericks":[{name:"Marvin Bagley III",pos:"SF",ovr:74},{name:"Max Christie",pos:"SG",ovr:74},{name:"Moussa Cisse",pos:"C",ovr:74},{name:"Cooper Flagg",pos:"SF",ovr:74},{name:"Daniel Gafford",pos:"SF",ovr:74},{name:"Kyrie Irving",pos:"SG",ovr:74},{name:"AJ Johnson",pos:"SG",ovr:74},{name:"Dereck Lively II",pos:"C",ovr:74},{name:"Naji Marshall",pos:"SF",ovr:74},{name:"Caleb Martin",pos:"SF",ovr:74},{name:"Khris Middleton",pos:"SF",ovr:80},{name:"Ryan Nembhard",pos:"SG",ovr:74},{name:"John Poulakidas",pos:"SG",ovr:74},{name:"Dwight Powell",pos:"SF",ovr:74},{name:"Tyler Smith",pos:"SF",ovr:74},{name:"Klay Thompson",pos:"SG",ovr:74},{name:"P.J. Washington",pos:"SF",ovr:74},{name:"Brandon Williams",pos:"SG",ovr:74}],
+"Denver Nuggets":[{name:"Christian Braun",pos:"SG",ovr:74},{name:"Bruce Brown",pos:"SG",ovr:74},{name:"Aaron Gordon",pos:"SF",ovr:74},{name:"Tim Hardaway Jr.",pos:"SG",ovr:74},{name:"DaRon Holmes II",pos:"SF",ovr:74},{name:"Cameron Johnson",pos:"SF",ovr:74},{name:"Nikola Jokic",pos:"C",ovr:98},{name:"Curtis Jones",pos:"SG",ovr:74},{name:"Spencer Jones",pos:"SF",ovr:74},{name:"Tyus Jones",pos:"SG",ovr:74},{name:"Jamal Murray",pos:"SG",ovr:87},{name:"Zeke Nnaji",pos:"SF",ovr:74},{name:"Jalen Pickett",pos:"SG",ovr:74},{name:"David Roddy",pos:"SF",ovr:74},{name:"KJ Simpson",pos:"SG",ovr:74},{name:"Julian Strawther",pos:"SG",ovr:74},{name:"Jonas Valanciunas",pos:"C",ovr:74},{name:"Peyton Watson",pos:"SG",ovr:74}],
+"Detroit Pistons":[{name:"Cade Cunningham",pos:"SG",ovr:88},{name:"Jalen Duren",pos:"C",ovr:74},{name:"Javonte Green",pos:"SG",ovr:74},{name:"Tobias Harris",pos:"SF",ovr:74},{name:"Ronald Holland II",pos:"SF",ovr:74},{name:"Kevin Huerter",pos:"SG",ovr:74},{name:"Daniss Jenkins",pos:"SG",ovr:74},{name:"Isaac Jones",pos:"C",ovr:74},{name:"Bobi Klintman",pos:"SF",ovr:74},{name:"Chaz Lanier",pos:"SG",ovr:74},{name:"Caris LeVert",pos:"SG",ovr:74},{name:"Wendell Moore Jr.",pos:"SF",ovr:74},{name:"Paul Reed",pos:"SF",ovr:74},{name:"Duncan Robinson",pos:"SF",ovr:74},{name:"Marcus Sasser",pos:"SG",ovr:74},{name:"Tolu Smith",pos:"SF",ovr:74},{name:"Isaiah Stewart",pos:"SF",ovr:74},{name:"Ausar Thompson",pos:"SG",ovr:74}],
+"Golden State Warriors":[{name:"Jimmy Butler III",pos:"SF",ovr:74},{name:"LJ Cryer",pos:"SG",ovr:74},{name:"Seth Curry",pos:"SG",ovr:74},{name:"Stephen Curry",pos:"SG",ovr:95},{name:"Draymond Green",pos:"SF",ovr:74},{name:"Al Horford",pos:"C",ovr:74},{name:"Malevy Leons",pos:"SF",ovr:74},{name:"De&#x27;Anthony Melton",pos:"SG",ovr:74},{name:"Moses Moody",pos:"SG",ovr:74},{name:"Gary Payton II",pos:"SG",ovr:74},{name:"Brandin Podziemski",pos:"SG",ovr:74},{name:"Kristaps Porzingis",pos:"C",ovr:74},{name:"Quinten Post",pos:"C",ovr:74},{name:"Will Richard",pos:"SG",ovr:74},{name:"Gui Santos",pos:"SF",ovr:74},{name:"Pat Spencer",pos:"SG",ovr:74},{name:"Nate Williams",pos:"SG",ovr:74},{name:"Omer Yurtseven",pos:"C",ovr:74}],
+"Houston Rockets":[{name:"Steven Adams",pos:"C",ovr:74},{name:"Clint Capela",pos:"C",ovr:74},{name:"Isaiah Crawford",pos:"SF",ovr:74},{name:"JD Davison",pos:"SG",ovr:74},{name:"Kevin Durant",pos:"SF",ovr:92},{name:"Tari Eason",pos:"SF",ovr:74},{name:"Dorian Finney-Smith",pos:"SF",ovr:74},{name:"Jeff Green",pos:"SF",ovr:74},{name:"Aaron Holiday",pos:"SG",ovr:74},{name:"Tristen Newton",pos:"SG",ovr:74},{name:"Josh Okogie",pos:"SG",ovr:74},{name:"Alperen Sengun",pos:"C",ovr:86},{name:"Reed Sheppard",pos:"SG",ovr:74},{name:"Jabari Smith Jr.",pos:"SF",ovr:74},{name:"Jae&#x27;Sean Tate",pos:"SF",ovr:74},{name:"Amen Thompson",pos:"SG",ovr:74},{name:"Fred VanVleet",pos:"SG",ovr:74}],
+"Indiana Pacers":[{name:"Kobe Brown",pos:"SG",ovr:74},{name:"Johnny Furphy",pos:"SG",ovr:74},{name:"Tyrese Haliburton",pos:"SG",ovr:88},{name:"Jay Huff",pos:"C",ovr:74},{name:"Quenton Jackson",pos:"SG",ovr:74},{name:"Kam Jones",pos:"SG",ovr:74},{name:"T.J. McConnell",pos:"SG",ovr:74},{name:"Andrew Nembhard",pos:"SG",ovr:78},{name:"Aaron Nesmith",pos:"SG",ovr:74},{name:"Taelon Peter",pos:"SG",ovr:74},{name:"Micah Potter",pos:"C",ovr:74},{name:"Ben Sheppard",pos:"SG",ovr:74},{name:"Pascal Siakam",pos:"SF",ovr:84},{name:"Jalen Slawson",pos:"SF",ovr:74},{name:"Ethan Thompson",pos:"SG",ovr:74},{name:"Obi Toppin",pos:"SF",ovr:74},{name:"Jarace Walker",pos:"SF",ovr:74},{name:"Ivica Zubac",pos:"C",ovr:74}],
+"LA Clippers":[{name:"Nicolas Batum",pos:"SF",ovr:74},{name:"Bradley Beal",pos:"SG",ovr:74},{name:"Bogdan Bogdanovic",pos:"SG",ovr:74},{name:"Cam Christie",pos:"SG",ovr:74},{name:"John Collins",pos:"SF",ovr:74},{name:"Kris Dunn",pos:"SG",ovr:74},{name:"Darius Garland",pos:"SG",ovr:86},{name:"Isaiah Jackson",pos:"SF",ovr:74},{name:"Derrick Jones Jr.",pos:"SF",ovr:74},{name:"Kawhi Leonard",pos:"SF",ovr:88},{name:"Brook Lopez",pos:"C",ovr:79},{name:"Bennedict Mathurin",pos:"SG",ovr:74},{name:"Jordan Miller",pos:"SG",ovr:74},{name:"Yanic Konan Niederhauser",pos:"C",ovr:74},{name:"Norchad Omier",pos:"SF",ovr:74},{name:"Sean Pedulla",pos:"SG",ovr:74},{name:"Kobe Sanders",pos:"SG",ovr:74},{name:"TyTy Washington Jr.",pos:"SG",ovr:74}],
+"Los Angeles Lakers":[{name:"Deandre Ayton",pos:"C",ovr:81},{name:"Kobe Bufkin",pos:"SG",ovr:74},{name:"Luka Doncic",pos:"SG",ovr:97},{name:"Rui Hachimura",pos:"SF",ovr:74},{name:"Jaxson Hayes",pos:"C",ovr:74},{name:"Bronny James",pos:"SG",ovr:74},{name:"LeBron James",pos:"SF",ovr:89},{name:"Luke Kennard",pos:"SG",ovr:74},{name:"Maxi Kleber",pos:"SF",ovr:74},{name:"Dalton Knecht",pos:"SF",ovr:74},{name:"Jake LaRavia",pos:"SF",ovr:74},{name:"Chris Manon",pos:"SG",ovr:74},{name:"Austin Reaves",pos:"SG",ovr:74},{name:"Marcus Smart",pos:"SG",ovr:77},{name:"Nick Smith Jr.",pos:"SG",ovr:74},{name:"Adou Thiero",pos:"SF",ovr:74},{name:"Drew Timme",pos:"SF",ovr:74},{name:"Jarred Vanderbilt",pos:"SF",ovr:74}],
+"Memphis Grizzlies":[{name:"Santi Aldama",pos:"SF",ovr:74},{name:"Adama Bal",pos:"SG",ovr:74},{name:"Tyler Burton",pos:"SF",ovr:74},{name:"Kentavious Caldwell-Pope",pos:"SG",ovr:74},{name:"Brandon Clarke",pos:"SF",ovr:74},{name:"Walter Clayton Jr.",pos:"SG",ovr:74},{name:"Cedric Coward",pos:"SF",ovr:74},{name:"Zach Edey",pos:"C",ovr:74},{name:"Taj Gibson",pos:"SF",ovr:74},{name:"Taylor Hendricks",pos:"SF",ovr:74},{name:"GG Jackson",pos:"SF",ovr:74},{name:"DeJon Jarreau",pos:"SG",ovr:74},{name:"Ty Jerome",pos:"SG",ovr:74},{name:"Jahmai Mashack",pos:"SG",ovr:74},{name:"Ja Morant",pos:"SG",ovr:89},{name:"Scotty Pippen Jr.",pos:"SG",ovr:74},{name:"Olivier-Maxence Prosper",pos:"SF",ovr:74},{name:"Rayan Rupert",pos:"SG",ovr:74},{name:"Javon Small",pos:"SG",ovr:74},{name:"Cam Spencer",pos:"SG",ovr:74},{name:"Jaylen Wells",pos:"SF",ovr:74}],
+"Miami Heat":[{name:"Bam Adebayo",pos:"C",ovr:88},{name:"Simone Fontecchio",pos:"SF",ovr:74},{name:"Myron Gardner",pos:"SF",ovr:74},{name:"Vladislav Goldin",pos:"C",ovr:74},{name:"Tyler Herro",pos:"SG",ovr:83},{name:"Kasparas Jakucionis",pos:"SG",ovr:74},{name:"Jaime Jaquez Jr.",pos:"SF",ovr:74},{name:"Keshad Johnson",pos:"SF",ovr:74},{name:"Nikola Jovic",pos:"SF",ovr:74},{name:"Trevor Keels",pos:"SG",ovr:74},{name:"Pelle Larsson",pos:"SG",ovr:74},{name:"Davion Mitchell",pos:"SG",ovr:74},{name:"Norman Powell",pos:"SG",ovr:74},{name:"Terry Rozier",pos:"SG",ovr:78},{name:"Dru Smith",pos:"SG",ovr:74},{name:"Kel&#x27;el Ware",pos:"C",ovr:74},{name:"Andrew Wiggins",pos:"SF",ovr:74},{name:"Jahmir Young",pos:"SG",ovr:74}],
+"Milwaukee Bucks":[{name:"Alex Antetokounmpo",pos:"SF",ovr:74},{name:"Giannis Antetokounmpo",pos:"SF",ovr:97},{name:"Thanasis Antetokounmpo",pos:"SF",ovr:74},{name:"Ousmane Dieng",pos:"SF",ovr:74},{name:"AJ Green",pos:"SG",ovr:74},{name:"Gary Harris",pos:"SG",ovr:74},{name:"Andre Jackson Jr.",pos:"SG",ovr:74},{name:"Kyle Kuzma",pos:"SF",ovr:77},{name:"Pete Nance",pos:"SF",ovr:74},{name:"Kevin Porter Jr.",pos:"SG",ovr:74},{name:"Bobby Portis",pos:"SF",ovr:77},{name:"Taurean Prince",pos:"SF",ovr:74},{name:"Ryan Rollins",pos:"SG",ovr:74},{name:"Cormac Ryan",pos:"SG",ovr:74},{name:"Jericho Sims",pos:"C",ovr:74},{name:"Gary Trent Jr.",pos:"SG",ovr:77},{name:"Myles Turner",pos:"C",ovr:81}],
+"Minnesota Timberwolves":[{name:"Kyle Anderson",pos:"SF",ovr:74},{name:"Joan Beringer",pos:"SF",ovr:74},{name:"Jaylen Clark",pos:"SG",ovr:74},{name:"Mike Conley",pos:"SG",ovr:74},{name:"Donte DiVincenzo",pos:"SG",ovr:74},{name:"Ayo Dosunmu",pos:"SG",ovr:74},{name:"Anthony Edwards",pos:"SG",ovr:93},{name:"Enrique Freeman",pos:"SF",ovr:74},{name:"Rudy Gobert",pos:"C",ovr:81},{name:"Bones Hyland",pos:"SG",ovr:74},{name:"Joe Ingles",pos:"SF",ovr:74},{name:"Jaden McDaniels",pos:"SF",ovr:80},{name:"Julian Phillips",pos:"SF",ovr:74},{name:"Zyon Pullin",pos:"SG",ovr:74},{name:"Julius Randle",pos:"SF",ovr:83},{name:"Naz Reid",pos:"C",ovr:79},{name:"Terrence Shannon Jr.",pos:"SG",ovr:74},{name:"Rocco Zikarsky",pos:"C",ovr:74}],
+"New Orleans Pelicans":[{name:"Trey Alexander",pos:"SG",ovr:74},{name:"Saddiq Bey",pos:"SG",ovr:74},{name:"Hunter Dickinson",pos:"C",ovr:74},{name:"Jeremiah Fears",pos:"SG",ovr:74},{name:"Jordan Hawkins",pos:"SG",ovr:74},{name:"Herbert Jones",pos:"SF",ovr:74},{name:"DeAndre Jordan",pos:"C",ovr:74},{name:"Kevon Looney",pos:"SF",ovr:74},{name:"Karlo Matkovic",pos:"SF",ovr:74},{name:"Bryce McGowens",pos:"SG",ovr:74},{name:"Yves Missi",pos:"C",ovr:74},{name:"Trey Murphy III",pos:"SF",ovr:78},{name:"Dejounte Murray",pos:"SG",ovr:83},{name:"Josh Oduro",pos:"C",ovr:74},{name:"Micah Peavy",pos:"SG",ovr:74},{name:"Jordan Poole",pos:"SG",ovr:78},{name:"Derik Queen",pos:"C",ovr:74},{name:"Zion Williamson",pos:"SF",ovr:88}],
+"New York Knicks":[{name:"Jose Alvarado",pos:"SG",ovr:74},{name:"OG Anunoby",pos:"SF",ovr:83},{name:"Mikal Bridges",pos:"SG",ovr:82},{name:"Jalen Brunson",pos:"SG",ovr:91},{name:"Jordan Clarkson",pos:"SG",ovr:74},{name:"Pacome Dadiet",pos:"SF",ovr:74},{name:"Mohamed Diawara",pos:"SF",ovr:74},{name:"Josh Hart",pos:"SG",ovr:74},{name:"Ariel Hukporti",pos:"C",ovr:74},{name:"Trey Jemison III",pos:"SF",ovr:74},{name:"Dillon Jones",pos:"SF",ovr:74},{name:"Tyler Kolek",pos:"SG",ovr:74},{name:"Miles McBride",pos:"SG",ovr:74},{name:"Kevin McCullar Jr.",pos:"SG",ovr:74},{name:"Mitchell Robinson",pos:"C",ovr:74},{name:"Landry Shamet",pos:"SG",ovr:74},{name:"Jeremy Sochan",pos:"SF",ovr:74},{name:"Karl-Anthony Towns",pos:"C",ovr:87}],
+"Oklahoma City Thunder":[{name:"Brooks Barnhizer",pos:"SF",ovr:74},{name:"Branden Carlson",pos:"C",ovr:74},{name:"Alex Caruso",pos:"SG",ovr:78},{name:"Luguentz Dort",pos:"SG",ovr:74},{name:"Shai Gilgeous-Alexander",pos:"SG",ovr:95},{name:"Isaiah Hartenstein",pos:"C",ovr:80},{name:"Chet Holmgren",pos:"C",ovr:85},{name:"Isaiah Joe",pos:"SG",ovr:74},{name:"Jared McCain",pos:"SG",ovr:74},{name:"Ajay Mitchell",pos:"SG",ovr:74},{name:"Payton Sandfort",pos:"SF",ovr:74},{name:"Thomas Sorber",pos:"C",ovr:74},{name:"Nikola Topic",pos:"SG",ovr:74},{name:"Cason Wallace",pos:"SG",ovr:74},{name:"Aaron Wiggins",pos:"SG",ovr:74},{name:"Jalen Williams",pos:"SG",ovr:87},{name:"Jaylin Williams",pos:"SF",ovr:74},{name:"Kenrich Williams",pos:"SG",ovr:74}],
+"Orlando Magic":[{name:"Paolo Banchero",pos:"SF",ovr:88},{name:"Desmond Bane",pos:"SG",ovr:82},{name:"Goga Bitadze",pos:"C",ovr:74},{name:"Anthony Black",pos:"SG",ovr:74},{name:"Jamal Cain",pos:"SF",ovr:74},{name:"Jevon Carter",pos:"SG",ovr:74},{name:"Wendell Carter Jr.",pos:"C",ovr:74},{name:"Colin Castleton",pos:"C",ovr:74},{name:"Tristan da Silva",pos:"SF",ovr:74},{name:"Jett Howard",pos:"SG",ovr:74},{name:"Jonathan Isaac",pos:"SF",ovr:74},{name:"Alex Morales",pos:"SG",ovr:74},{name:"Noah Penda",pos:"SF",ovr:74},{name:"Jase Richardson",pos:"SG",ovr:74},{name:"Jalen Suggs",pos:"SG",ovr:74},{name:"Franz Wagner",pos:"SF",ovr:85},{name:"Moritz Wagner",pos:"SF",ovr:74}],
+"Philadelphia 76ers":[{name:"Dominick Barlow",pos:"SF",ovr:74},{name:"MarJon Beauchamp",pos:"SF",ovr:74},{name:"Adem Bona",pos:"C",ovr:74},{name:"Johni Broome",pos:"SF",ovr:74},{name:"Andre Drummond",pos:"C",ovr:74},{name:"VJ Edgecombe",pos:"SG",ovr:74},{name:"Justin Edwards",pos:"SF",ovr:74},{name:"Joel Embiid",pos:"C",ovr:93},{name:"Paul George",pos:"SF",ovr:84},{name:"Quentin Grimes",pos:"SG",ovr:74},{name:"Kyle Lowry",pos:"SG",ovr:74},{name:"Tyrese Martin",pos:"SG",ovr:74},{name:"Tyrese Maxey",pos:"SG",ovr:89},{name:"Kelly Oubre Jr.",pos:"SG",ovr:74},{name:"Cameron Payne",pos:"PG",ovr:74},{name:"Dalen Terry",pos:"SF",ovr:74},{name:"Jabari Walker",pos:"SF",ovr:74},{name:"Trendon Watford",pos:"SF",ovr:74}],
+"Phoenix Suns":[{name:"Grayson Allen",pos:"SG",ovr:74},{name:"Devin Booker",pos:"SG",ovr:90},{name:"Jamaree Bouyea",pos:"SG",ovr:74},{name:"Koby Brea",pos:"SG",ovr:74},{name:"Dillon Brooks",pos:"SF",ovr:74},{name:"Amir Coffey",pos:"SG",ovr:74},{name:"Ryan Dunn",pos:"SF",ovr:74},{name:"Rasheer Fleming",pos:"SF",ovr:74},{name:"Collin Gillespie",pos:"SG",ovr:74},{name:"Jordan Goodwin",pos:"SG",ovr:74},{name:"Jalen Green",pos:"SG",ovr:84},{name:"Haywood Highsmith",pos:"SF",ovr:74},{name:"CJ Huntley",pos:"SF",ovr:74},{name:"Oso Ighodaro",pos:"SF",ovr:74},{name:"Isaiah Livers",pos:"SF",ovr:74},{name:"Khaman Maluach",pos:"C",ovr:74},{name:"Royce O&#x27;Neale",pos:"SF",ovr:74},{name:"Mark Williams",pos:"C",ovr:74}],
+"Portland Trail Blazers":[{name:"Deni Avdija",pos:"SF",ovr:77},{name:"Toumani Camara",pos:"SF",ovr:74},{name:"Sidy Cissoko",pos:"SG",ovr:74},{name:"Donovan Clingan",pos:"C",ovr:74},{name:"Jerami Grant",pos:"SF",ovr:74},{name:"Yang Hansen",pos:"C",ovr:74},{name:"Scoot Henderson",pos:"SG",ovr:79},{name:"Jrue Holiday",pos:"SG",ovr:74},{name:"Jayson Kent",pos:"SG",ovr:74},{name:"Vit Krejci",pos:"SG",ovr:74},{name:"Damian Lillard",pos:"SG",ovr:87},{name:"Caleb Love",pos:"SG",ovr:74},{name:"Kris Murray",pos:"SF",ovr:74},{name:"Shaedon Sharpe",pos:"SG",ovr:79},{name:"Matisse Thybulle",pos:"SG",ovr:74},{name:"Blake Wesley",pos:"SG",ovr:74},{name:"Robert Williams III",pos:"C",ovr:74},{name:"Chris Youngblood",pos:"SG",ovr:74}],
+"Sacramento Kings":[{name:"Precious Achiuwa",pos:"PF",ovr:74},{name:"Patrick Baldwin Jr.",pos:"SG",ovr:74},{name:"Dylan Cardwell",pos:"C",ovr:74},{name:"Devin Carter",pos:"SG",ovr:74},{name:"Nique Clifford",pos:"SG",ovr:74},{name:"DeMar DeRozan",pos:"SG",ovr:74},{name:"Drew Eubanks",pos:"SF",ovr:74},{name:"Killian Hayes",pos:"SG",ovr:74},{name:"De&#x27;Andre Hunter",pos:"SF",ovr:74},{name:"DaQuan Jeffries",pos:"SG",ovr:74},{name:"Zach LaVine",pos:"SG",ovr:84},{name:"Doug McDermott",pos:"SF",ovr:74},{name:"Malik Monk",pos:"SG",ovr:74},{name:"Keegan Murray",pos:"SF",ovr:74},{name:"Daeqwon Plowden",pos:"SG",ovr:74},{name:"Maxime Raynaud",pos:"C",ovr:74},{name:"Domantas Sabonis",pos:"SF",ovr:87},{name:"Isaiah Stevens",pos:"SG",ovr:74},{name:"Russell Westbrook",pos:"SG",ovr:74}],
+"San Antonio Spurs":[{name:"Harrison Barnes",pos:"SF",ovr:74},{name:"Bismack Biyombo",pos:"C",ovr:74},{name:"Carter Bryant",pos:"SF",ovr:74},{name:"Stephon Castle",pos:"SG",ovr:74},{name:"Julian Champagnie",pos:"SF",ovr:74},{name:"De&#x27;Aaron Fox",pos:"SG",ovr:74},{name:"Dylan Harper",pos:"SG",ovr:74},{name:"Harrison Ingram",pos:"SF",ovr:74},{name:"Keldon Johnson",pos:"SF",ovr:74},{name:"David Jones Garcia",pos:"SF",ovr:74},{name:"Luke Kornet",pos:"C",ovr:74},{name:"Jordan McLaughlin",pos:"SG",ovr:74},{name:"Emanuel Miller",pos:"SF",ovr:74},{name:"Kelly Olynyk",pos:"SF",ovr:74},{name:"Mason Plumlee",pos:"C",ovr:74},{name:"Devin Vassell",pos:"SG",ovr:74},{name:"Lindy Waters III",pos:"SF",ovr:74},{name:"Victor Wembanyama",pos:"SF",ovr:92}],
+"Toronto Raptors":[{name:"Scottie Barnes",pos:"SF",ovr:85},{name:"RJ Barrett",pos:"SF",ovr:82},{name:"Jamison Battle",pos:"SF",ovr:74},{name:"Gradey Dick",pos:"SG",ovr:74},{name:"Markelle Fultz",pos:"SG",ovr:74},{name:"Chucky Hepburn",pos:"SG",ovr:74},{name:"Brandon Ingram",pos:"SF",ovr:84},{name:"Trayce Jackson-Davis",pos:"SF",ovr:74},{name:"A.J. Lawson",pos:"SG",ovr:74},{name:"Sandro Mamukelashvili",pos:"SF",ovr:74},{name:"Alijah Martin",pos:"SG",ovr:74},{name:"Jonathan Mogbo",pos:"SF",ovr:74},{name:"Collin Murray-Boyles",pos:"SF",ovr:74},{name:"Jakob Poeltl",pos:"C",ovr:80},{name:"Immanuel Quickley",pos:"SG",ovr:80},{name:"Jamal Shead",pos:"SG",ovr:74},{name:"Garrett Temple",pos:"SG",ovr:74},{name:"Ja&#x27;Kobe Walter",pos:"SG",ovr:74}],
+"Utah Jazz":[{name:"Ace Bailey",pos:"SG",ovr:74},{name:"Kennedy Chandler",pos:"SG",ovr:74},{name:"Isaiah Collier",pos:"SG",ovr:74},{name:"Kyle Filipowski",pos:"SF",ovr:74},{name:"Keyonte George",pos:"SG",ovr:74},{name:"Elijah Harkless",pos:"SG",ovr:74},{name:"Blake Hinson",pos:"SF",ovr:74},{name:"Jaren Jackson Jr.",pos:"SF",ovr:87},{name:"Walker Kessler",pos:"C",ovr:79},{name:"John Konchar",pos:"SG",ovr:74},{name:"Kevin Love",pos:"SF",ovr:74},{name:"Lauri Markkanen",pos:"SF",ovr:85},{name:"Bez Mbeng",pos:"SG",ovr:74},{name:"Svi Mykhailiuk",pos:"SG",ovr:74},{name:"Jusuf Nurkic",pos:"C",ovr:74},{name:"Brice Sensabaugh",pos:"SF",ovr:74},{name:"Oscar Tshiebwe",pos:"C",ovr:74},{name:"Cody Williams",pos:"SF",ovr:74}],
+"Washington Wizards":[{name:"Leaky Black",pos:"SF",ovr:74},{name:"Bub Carrington",pos:"SG",ovr:74},{name:"Justin Champagnie",pos:"SF",ovr:74},{name:"Sharife Cooper",pos:"SG",ovr:74},{name:"Bilal Coulibaly",pos:"SG",ovr:76},{name:"Anthony Davis",pos:"SF",ovr:92},{name:"Kyshawn George",pos:"SF",ovr:74},{name:"Anthony Gill",pos:"SF",ovr:74},{name:"Jaden Hardy",pos:"SG",ovr:74},{name:"Tre Johnson",pos:"SG",ovr:74},{name:"Julian Reese",pos:"SF",ovr:74},{name:"Will Riley",pos:"SG",ovr:74},{name:"D&#x27;Angelo Russell",pos:"SG",ovr:74},{name:"Alex Sarr",pos:"C",ovr:74},{name:"Tristan Vukcevic",pos:"SF",ovr:74},{name:"Jamir Watkins",pos:"SG",ovr:74},{name:"Cam Whitmore",pos:"SF",ovr:74},{name:"Trae Young",pos:"SG",ovr:87}]
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let S = {team:"",roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[]};
+const KEY = "nba_tm_v3";
+const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
+const load=()=>{try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);}catch(e){}};
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init(){
+  const years=[2026,2027,2028,2029,2030,2031];
+  const teams=Object.keys(TEAMS).sort();
+
+  // Populate team selects
+  ['myTeam','otherTeam','sendPickOwner','recvPickOwner'].forEach(id=>{
+    const el=document.getElementById(id);
+    teams.forEach(t=>{
+      const o=document.createElement('option');
+      o.value=t; o.textContent=t;
+      el.appendChild(o);
+    });
+  });
+  // Year picks
+  ['sendPickYear','recvPickYear'].forEach(id=>{
+    const el=document.getElementById(id);
+    years.forEach(y=>{
+      const o=document.createElement('option');
+      o.value=y; o.textContent=y;
+      el.appendChild(o);
+    });
+  });
+
+  load();
+  if(S.team){
+    document.getElementById('myTeam').value=S.team;
+    renderRoster();renderSend();renderRecv();renderLog();renderStats();
+  }
+}
+
+// ── ROSTER ────────────────────────────────────────────────────────────────────
+function loadMyTeam(){
+  const t=document.getElementById('myTeam').value;
+  if(!t)return;
+  if(S.team!==t){S.team=t;S.roster=TEAMS[t].map(p=>({...p}));S.sending=[];S.sendPicks=[];S.receiving=[];S.recvPicks=[];save();}
+  renderRoster();renderSend();renderStats();
+}
+
+function resetTeam(){
+  if(!S.team)return;
+  if(!confirm(`Reset ${S.team} to default 2025-26 roster?`))return;
+  S.roster=TEAMS[S.team].map(p=>({...p}));S.sending=[];S.sendPicks=[];S.receiving=[];S.recvPicks=[];S.trades=[];
+  save();renderRoster();renderSend();renderRecv();renderLog();renderStats();
+}
+
+function renderRoster(){
+  const g=document.getElementById('myRoster');
+  if(!S.team){g.innerHTML='';return;}
+  g.innerHTML='';
+  S.roster.forEach((p,i)=>{
+    const d=document.createElement('div');
+    d.className='pcard'+(S.sending.includes(i)?' selected':'');
+    d.onclick=()=>togSend(i);
+    d.innerHTML=`<div class="pname">${p.name}</div><div class="ppos">${p.pos}</div><div class="povr">OVR ${p.ovr}</div>`;
+    g.appendChild(d);
+  });
+}
+
+function togSend(i){
+  const x=S.sending.indexOf(i);
+  x===-1?S.sending.push(i):S.sending.splice(x,1);
+  renderRoster();renderSend();updBtn();
+}
+
+// ── DRAFT PICKS ───────────────────────────────────────────────────────────────
+function pickLabel(year,round,owner){return `${year} ${round} (${owner})`;}
+
+function addSendPick(){
+  const y=document.getElementById('sendPickYear').value;
+  const r=document.getElementById('sendPickRound').value;
+  const o=document.getElementById('sendPickOwner').value;
+  if(!y||!r||!o)return alert('Fill in year, round, and pick owner!');
+  S.sendPicks.push({year:y,round:r,owner:o});
+  renderSend();updBtn();
+}
+
+function addRecvPick(){
+  const y=document.getElementById('recvPickYear').value;
+  const r=document.getElementById('recvPickRound').value;
+  const o=document.getElementById('recvPickOwner').value;
+  if(!y||!r||!o)return alert('Fill in year, round, and pick owner!');
+  S.recvPicks.push({year:y,round:r,owner:o});
+  renderRecv();updBtn();
+}
+
+// ── TRADE SEND/RECV ───────────────────────────────────────────────────────────
+function renderSend(){
+  const l=document.getElementById('sendList');
+  const items=[];
+  S.sending.forEach(i=>{const p=S.roster[i];items.push(`<div class="trade-item"><span>${p.name} (${p.pos}, OVR ${p.ovr})</span><button onclick="togSend(${i})">✕</button></div>`);});
+  S.sendPicks.forEach((pk,i)=>{items.push(`<div class="trade-item pick-item"><span>📋 ${pickLabel(pk.year,pk.round,pk.owner)}</span><button onclick="rmSendPick(${i})">✕</button></div>`);});
+  l.innerHTML=items.length?items.join(''):'<p class="empty">Click players on your roster above</p>';
+}
+
+function rmSendPick(i){S.sendPicks.splice(i,1);renderSend();updBtn();evalTrade();}
+
+function loadOtherTeam(){
+  const t=document.getElementById('otherTeam').value;
+  const sel=document.getElementById('otherPlayerSelect');
+  sel.innerHTML='<option value="">— Select player —</option>';
+  if(!t)return;
+  TEAMS[t].forEach((p,i)=>{
+    const o=document.createElement('option');
+    o.value=i; o.textContent=`${p.name} (${p.pos}, OVR ${p.ovr})`;
+    sel.appendChild(o);
+  });
+}
+
+function addRecvPlayer(){
+  const t=document.getElementById('otherTeam').value;
+  const idx=document.getElementById('otherPlayerSelect').value;
+  if(!t||idx==='')return alert('Pick a team and player!');
+  const p={...TEAMS[t][idx],fromTeam:t};
+  // avoid duplicates
+  if(S.receiving.find(r=>r.name===p.name))return alert(`${p.name} already added!`);
+  S.receiving.push(p);
+  renderRecv();updBtn();
+}
+
+function renderRecv(){
+  const l=document.getElementById('recvList');
+  const items=[];
+  S.receiving.forEach((p,i)=>{items.push(`<div class="trade-item"><span>${p.name} (${p.pos}, OVR ${p.ovr}) from ${p.fromTeam}</span><button onclick="rmRecv(${i})">✕</button></div>`);});
+  S.recvPicks.forEach((pk,i)=>{items.push(`<div class="trade-item pick-item"><span>📋 ${pickLabel(pk.year,pk.round,pk.owner)}</span><button onclick="rmRecvPick(${i})">✕</button></div>`);});
+  l.innerHTML=items.length?items.join(''):'<p class="empty">Add players from another team below</p>';
+}
+
+function rmRecv(i){S.receiving.splice(i,1);renderRecv();updBtn();evalTrade();}
+function rmRecvPick(i){S.recvPicks.splice(i,1);renderRecv();updBtn();evalTrade();}
+
+function updBtn(){
+  document.getElementById('execBtn').disabled=!(S.sending.length||S.sendPicks.length||S.receiving.length||S.recvPicks.length);
+  evalTrade();
+}
+
+// ── TRADE EVALUATION ──────────────────────────────────────────────────────────
+// Player ages (approximate, based on 2025-26 season)
+const AGES = {
+  'Nikola Jokic':31,'Shai Gilgeous-Alexander':27,'Luka Doncic':26,'Giannis Antetokounmpo':31,
+  'Jayson Tatum':27,'Stephen Curry':37,'Joel Embiid':32,'Kevin Durant':36,'Devin Booker':28,
+  'Anthony Edwards':24,'LeBron James':40,'Donovan Mitchell':28,'Ja Morant':25,'Bam Adebayo':28,
+  'Tyrese Haliburton':25,'Jalen Brunson':28,'Cade Cunningham':24,"De'Aaron Fox":27,
+  'Domantas Sabonis':29,'Scottie Barnes':24,'Karl-Anthony Towns':29,'Victor Wembanyama':21,
+  'Paolo Banchero':22,'Franz Wagner':23,'Tyrese Maxey':25,'Zion Williamson':24,
+  'Trae Young':26,'Cam Thomas':23,'Alperen Sengun':23,'Jalen Green':23,'Evan Mobley':23,
+  'Darius Garland':25,'Jamal Murray':28,'Anthony Davis':31,'Damian Lillard':34,
+  'Khris Middleton':33,'Brook Lopez':37,'Alex Caruso':31,'Jalen Williams':24,
+  'Chet Holmgren':23,'Jaylen Brown':28,'Jimmy Butler':35,'Tyler Herro':25,
+  'Zach LaVine':29,'Coby White':24,'Josh Giddey':22,'LaMelo Ball':23,
+  'Brandon Miller':22,'Miles Bridges':27,'Jaren Jackson Jr.':25,'Desmond Bane':26,
+  'Rudy Gobert':32,'Jaden McDaniels':24,'Julius Randle':30,'OG Anunoby':27,
+  'Mikal Bridges':27,'RJ Barrett':24,'Immanuel Quickley':25,'Jakob Poeltl':30,
+  'Lauri Markkanen':27,'Walker Kessler':23,'Collin Sexton':26,'Pascal Siakam':31,
+  'Scoot Henderson':21,'Anfernee Simons':26,'Deandre Ayton':26,'Shaedon Sharpe':21,
+  'Deni Avdija':24,'Jordan Poole':25,'Bilal Coulibaly':21,'Alexandre Sarr':21,
+  'Paul George':34,'Kawhi Leonard':33,'James Harden':35,'Dejounte Murray':28,
+  'Brandon Ingram':27,'CJ McCollum':33,'Herb Jones':25,'Trey Murphy III':24,
+  'Gary Trent Jr.':26,'Terry Rozier':31,'Myles Turner':29,'Bobby Portis':30,
+  'Kyle Kuzma':29,'Ousmane Dieng':22,'AJ Green':25,'Dyson Daniels':22,
+  'Jalen Johnson':23,'Nic Claxton':25,'Noah Clowney':22,'Jaylin Williams':22,
+  'Mark Williams':23,'Grant Williams':25,'Josh Green':24,'Zach Collins':27,
+  'Matas Buzelis':21,'Isaiah Stewart':24,'Ron Holland II':21,'Jalen Duren':21,
+  'Jonathan Kuminga':22,'Andrew Wiggins':29,'Buddy Hield':33,'Moses Moody':23,
+  'Amen Thompson':22,'Jabari Smith Jr.':22,'Tari Eason':24,'Fred VanVleet':31,
+  'Andrew Nembhard':25,'Bennedict Mathurin':23,'Aaron Nesmith':25,'Obi Toppin':27,
+  'Nikola Topic':20,'Cason Wallace':22,'Aaron Wiggins':26,'Payton Sandfort':22,
+  'Isaiah Hartenstein':27,'Isaiah Joe':25,'Kenrich Williams':30,
+};
+
+// Demand multiplier — high-demand players worth more in trade
+const DEMAND = {
+  'Nikola Jokic':1.3,'Shai Gilgeous-Alexander':1.3,'Luka Doncic':1.3,
+  'Giannis Antetokounmpo':1.25,'Jayson Tatum':1.2,'Stephen Curry':1.15,
+  'Joel Embiid':1.2,'Kevin Durant':1.2,'Devin Booker':1.15,'Anthony Edwards':1.25,
+  'LeBron James':1.1,'Donovan Mitchell':1.15,'Ja Morant':1.2,'Victor Wembanyama':1.3,
+  'Paolo Banchero':1.2,'Franz Wagner':1.15,'Tyrese Maxey':1.15,'Cade Cunningham':1.15,
+  'Tyrese Haliburton':1.15,'Jalen Brunson':1.15,'Zion Williamson':1.1,
+  'Trae Young':1.05,'Cam Thomas':1.1,'Alperen Sengun':1.15,'Jalen Green':1.1,
+  'Evan Mobley':1.15,'LaMelo Ball':1.1,'Anthony Davis':1.15,
+};
+
+// Estimated salaries (millions) for matching
+const SALARIES = {
+  'Nikola Jokic':47.6,'Shai Gilgeous-Alexander':38.3,'Luka Doncic':46.1,
+  'Giannis Antetokounmpo':54.1,'Jayson Tatum':54.1,'Stephen Curry':55.8,
+  'Joel Embiid':51.4,'Kevin Durant':51.2,'Devin Booker':49.2,'Anthony Edwards':44.2,
+  'LeBron James':52.0,'Donovan Mitchell':37.1,'Ja Morant':40.6,'Bam Adebayo':38.5,
+  'Tyrese Haliburton':34.0,'Jalen Brunson':36.0,'Cade Cunningham':35.6,
+  "De'Aaron Fox":30.4,'Domantas Sabonis':38.5,'Scottie Barnes':31.6,
+  'Karl-Anthony Towns':50.2,'Victor Wembanyama':12.1,'Paolo Banchero':13.4,
+  'Franz Wagner':22.0,'Tyrese Maxey':29.3,'Zion Williamson':37.4,
+  'Trae Young':43.0,'Cam Thomas':5.8,'Alperen Sengun':17.5,'Jalen Green':40.0,
+  'Evan Mobley':23.5,'Darius Garland':37.1,'Jamal Murray':41.0,'Anthony Davis':43.2,
+  'Damian Lillard':48.8,'Khris Middleton':28.0,'Brook Lopez':13.5,
+  'Alex Caruso':18.1,'Jalen Williams':6.6,'Chet Holmgren':13.7,
+  'Jaylen Brown':49.3,'Jimmy Butler':48.8,'Tyler Herro':32.6,
+  'Zach LaVine':43.9,'Coby White':18.6,'Josh Giddey':7.5,'LaMelo Ball':36.3,
+  'Brandon Miller':11.4,'Jaren Jackson Jr.':37.0,'Rudy Gobert':41.0,
+  'Julius Randle':27.9,'OG Anunoby':19.5,'Mikal Bridges':24.1,
+  'RJ Barrett':22.0,'Immanuel Quickley':19.5,'Lauri Markkanen':30.7,
+  'Walker Kessler':3.8,"De'Aaron Fox":30.4,'Pascal Siakam':35.3,
+  'Paul George':38.6,'Kawhi Leonard':35.5,'James Harden':35.6,
+};
+
+function playerValue(p) {
+  const age = AGES[p.name] || 27;
+  const demand = DEMAND[p.name] || 1.0;
+  // Age factor: peak at 25-28, decline after, lower for very young
+  let ageFactor;
+  if (age <= 22) ageFactor = 0.85 + (age-18)*0.04;
+  else if (age <= 28) ageFactor = 1.0 + (age-22)*0.015;
+  else if (age <= 32) ageFactor = 1.09 - (age-28)*0.04;
+  else ageFactor = 0.93 - (age-32)*0.05;
+  ageFactor = Math.max(0.4, ageFactor);
+  return Math.round(p.ovr * ageFactor * demand * 10) / 10;
+}
+
+function pickValue(pk) {
+  const yearDiff = parseInt(pk.year) - 2026;
+  const base = pk.round === '1st Round' ? 35 : 15;
+  return Math.max(5, base - yearDiff * 3);
+}
+
+function tradeGrade(myVal, theirVal) {
+  if (myVal === 0 && theirVal === 0) return null;
+  const ratio = theirVal / Math.max(myVal, 0.1);
+  if (ratio >= 1.15) return {grade:'A',color:'A',msg:'Great deal for you 🔥'};
+  if (ratio >= 1.05) return {grade:'B',color:'B',msg:'Solid value for you ✅'};
+  if (ratio >= 0.92) return {grade:'C',color:'C',msg:'Fair trade ⚖️'};
+  if (ratio >= 0.75) return {grade:'D',color:'D',msg:'You\'re losing value ⚠️'};
+  return {grade:'F',color:'F',msg:'Terrible deal — you\'re getting robbed 🚨'};
+}
+
+function evalTrade() {
+  const el = document.getElementById('tradeEval');
+  if (!S.sending.length && !S.sendPicks.length && !S.receiving.length && !S.recvPicks.length) {
+    el.style.display = 'none'; return;
+  }
+  el.style.display = 'block';
+
+  // Calculate values
+  const sentPlayers = S.sending.map(i => S.roster[i]);
+  const recvPlayers = S.receiving;
+  const myVal = sentPlayers.reduce((a,p)=>a+playerValue(p),0) + S.sendPicks.reduce((a,pk)=>a+pickValue(pk),0);
+  const theirVal = recvPlayers.reduce((a,p)=>a+playerValue(p),0) + S.recvPicks.reduce((a,pk)=>a+pickValue(pk),0);
+
+  // Salary check
+  const mySalary = sentPlayers.reduce((a,p)=>a+(SALARIES[p.name]||p.ovr*0.4),0);
+  const theirSalary = recvPlayers.reduce((a,p)=>a+(SALARIES[p.name]||p.ovr*0.4),0);
+  const salaryOk = mySalary === 0 || theirSalary === 0 || theirSalary <= mySalary * 1.25 + 5;
+
+  const grade = tradeGrade(myVal, theirVal);
+  const diff = theirVal - myVal;
+  const maxVal = Math.max(myVal, theirVal, 1);
+  const barPct = Math.min(100, Math.round((Math.min(myVal,theirVal)/maxVal)*100));
+
+  let html = `<h3>📊 Trade Evaluation</h3>`;
+  html += `<div class="eval-row"><span class="eval-label">Your side value</span><span class="eval-val">${myVal.toFixed(1)}</span></div>`;
+  html += `<div class="eval-row"><span class="eval-label">Their side value</span><span class="eval-val">${theirVal.toFixed(1)}</span></div>`;
+  html += `<div class="eval-bar-wrap"><div class="eval-bar" style="width:${barPct}%;background:${diff>=0?'#00c853':'#f44336'}"></div></div>`;
+
+  if (sentPlayers.length > 0) {
+    const ages = sentPlayers.map(p=>AGES[p.name]||27);
+    const avgAge = (ages.reduce((a,b)=>a+b,0)/ages.length).toFixed(1);
+    html += `<div class="eval-row"><span class="eval-label">Avg age you're sending</span><span class="eval-val">${avgAge} yrs</span></div>`;
+  }
+  if (recvPlayers.length > 0) {
+    const ages = recvPlayers.map(p=>AGES[p.name]||27);
+    const avgAge = (ages.reduce((a,b)=>a+b,0)/ages.length).toFixed(1);
+    html += `<div class="eval-row"><span class="eval-label">Avg age you're receiving</span><span class="eval-val">${avgAge} yrs</span></div>`;
+  }
+
+  if (mySalary > 0 || theirSalary > 0) {
+    html += `<div class="eval-row"><span class="eval-label">Salary sent</span><span class="eval-val">$${mySalary.toFixed(1)}M</span></div>`;
+    html += `<div class="eval-row"><span class="eval-label">Salary received</span><span class="eval-val">$${theirSalary.toFixed(1)}M</span></div>`;
+    if (!salaryOk) {
+      html += `<div class="eval-warn">⚠️ Salary mismatch — exceeds NBA 125% matching rules by $${(theirSalary - mySalary*1.25 - 5).toFixed(1)}M. This trade would likely be rejected in real life.</div>`;
+    }
+  }
+
+  if (grade) {
+    html += `<div class="eval-row" style="margin-top:8px"><span class="eval-label">Trade grade (your perspective)</span><span class="eval-val grade-${grade.color}" style="font-size:1.3rem">${grade.grade}</span></div>`;
+    const cls = diff >= 0 ? 'eval-good' : 'eval-warn';
+    html += `<div class="${cls}">${grade.msg}${Math.abs(diff) > 0 ? ` (${diff>0?'+':''}${diff.toFixed(1)} value)` : ''}</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ── EXECUTE ───────────────────────────────────────────────────────────────────
+function executeTrade(){
+  if(!S.team)return alert('Select your team first!');
+  const ot=document.getElementById('otherTeam').value||'Unknown Team';
+  const sent=S.sending.map(i=>({...S.roster[i]}));
+  const sentPicks=[...S.sendPicks];
+  const recv=[...S.receiving];
+  const recvPicks=[...S.recvPicks];
+
+  S.trades.unshift({
+    id:Date.now(),date:new Date().toLocaleString(),
+    team:S.team,otherTeam:ot,
+    sent,sentPicks,received:recv,recvPicks
+  });
+
+  // Update roster
+  const ss=new Set(S.sending);
+  S.roster=S.roster.filter((_,i)=>!ss.has(i));
+  recv.forEach(p=>S.roster.push({name:p.name,pos:p.pos,ovr:p.ovr}));
+
+  S.sending=[];S.sendPicks=[];S.receiving=[];S.recvPicks=[];
+  save();renderRoster();renderSend();renderRecv();renderLog();renderStats();updBtn();
+  alert(`✅ Trade done! ${sent.length} player${sent.length!==1?'s':''} + ${sentPicks.length} pick${sentPicks.length!==1?'s':''} out | ${recv.length} player${recv.length!==1?'s':''} + ${recvPicks.length} pick${recvPicks.length!==1?'s':''} in`);
+}
+
+function clearTrade(){
+  S.sending=[];S.sendPicks=[];S.receiving=[];S.recvPicks=[];
+  renderRoster();renderSend();renderRecv();updBtn();
+}
+
+// ── LOG ───────────────────────────────────────────────────────────────────────
+function renderLog(){
+  const el=document.getElementById('tradeLog');
+  if(!S.trades.length){el.innerHTML='<p class="empty">No trades yet — start rebuilding!</p>';return;}
+  el.innerHTML=S.trades.map((t,i)=>{
+    const sPlayers=t.sent.map(p=>p.name).join(', ')||'—';
+    const sPicks=t.sentPicks.map(pk=>pickLabel(pk.year,pk.round,pk.owner)).join(', ');
+    const rPlayers=t.received.map(p=>p.name).join(', ')||'—';
+    const rPicks=t.recvPicks.map(pk=>pickLabel(pk.year,pk.round,pk.owner)).join(', ');
+    return `<div class="log-entry">
+      <button class="btn-red" onclick="removeTrade(${i})">Remove</button>
+      <strong>${t.team}</strong> ↔ <strong>${t.otherTeam}</strong><br>
+      ➡️ Sent: ${sPlayers}${sPicks?` + ${sPicks}`:''}<br>
+      ⬅️ Got: ${rPlayers}${rPicks?` + ${rPicks}`:''}
+      <div class="log-meta">${t.date}</div>
+    </div>`;
+  }).join('');
+}
+
+function removeTrade(i){S.trades.splice(i,1);save();renderLog();renderStats();}
+
+function undoLast(){
+  if(!S.trades.length)return alert('Nothing to undo!');
+  const t=S.trades.shift();
+  t.received.forEach(p=>{const i=S.roster.findIndex(r=>r.name===p.name);if(i!==-1)S.roster.splice(i,1);});
+  t.sent.forEach(p=>S.roster.push(p));
+  save();renderRoster();renderLog();renderStats();
+  alert('↩️ Last trade undone!');
+}
+
+function clearLog(){
+  if(!confirm('Clear all trade history? Your current roster will stay.'))return;
+  S.trades=[];save();renderLog();renderStats();
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function renderStats(){
+  document.getElementById('sT').textContent=S.trades.length;
+  document.getElementById('sP').textContent=S.roster.length;
+  document.getElementById('sA').textContent=S.roster.length?Math.round(S.roster.reduce((a,p)=>a+p.ovr,0)/S.roster.length):'—';
+}
+
+init();
+</script>
+</body>
+</html>
