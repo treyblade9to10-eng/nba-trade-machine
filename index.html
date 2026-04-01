@@ -93,6 +93,16 @@ input::placeholder{color:#555}
 .start-team-btn{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px;cursor:pointer;color:#eee;font-size:.9rem;font-weight:600;transition:all .15s;text-align:left}
 .start-team-btn:hover{border-color:#f5c518;background:#2a2800;color:#f5c518}
 .start-team-btn .team-ovr{font-size:.75rem;color:#888;margin-top:3px}
+/* ROSTER TABLE */
+.roster-table{width:100%;border-collapse:collapse}
+.roster-table th{color:#888;font-size:.75rem;text-align:left;padding:6px 10px;border-bottom:1px solid #333;text-transform:uppercase;letter-spacing:.05em}
+.roster-table td{padding:8px 10px;border-bottom:1px solid #222;font-size:.85rem;vertical-align:middle}
+.roster-table tr:hover td{background:#1e1e1e}
+.roster-table .r-name{font-weight:700}
+.roster-table .r-pos{color:#888;font-size:.75rem}
+.roster-table .r-ovr{color:#f5c518;font-weight:700}
+.roster-table .r-age{color:#aaa}
+.roster-table .r-flag{font-size:.8rem}
 /* END CAREER */
 .end-career-btn{background:none;border:1px solid #b00020;color:#f44336;border-radius:7px;padding:6px 14px;font-size:.82rem;cursor:pointer;margin-left:auto}
 .end-career-btn:hover{background:#b00020;color:#fff}
@@ -153,14 +163,12 @@ input::placeholder{color:#555}
 
 <!-- Your Team -->
 <div class="page card" id="roster-section">
-  <h2>🏟️ Your Team <span class="team-rating" id="myTeamRating">—</span></h2>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-    <select id="myTeam" onchange="loadMyTeam()" style="max-width:280px"><option value="">— Select your team —</option></select>
-    <button class="btn-sm" onclick="resetTeam()">🔄 Reset Roster</button>
+  <h2>🏟️ My Team <span class="team-rating" id="myTeamRating">—</span></h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
     <button class="btn-sm" id="rebuildBtn" onclick="toggleRebuild()" style="border-color:#f57c00;color:#ff9800">🔨 Rebuild Mode</button>
   </div>
   <div class="rebuild-banner" id="rebuildBanner">🔨 <strong>Rebuild Mode ON</strong> — Focus on youth &amp; picks. Players 30+ flagged. Prioritize future value.</div>
-  <div class="roster-grid" id="myRoster"></div>
+  <div id="rosterTable"></div>
 </div>
 
 <!-- Trade Builder -->
@@ -170,7 +178,11 @@ input::placeholder{color:#555}
     <!-- SEND -->
     <div>
       <div class="trade-col"><h3>You Send</h3></div>
-      <div class="trade-list" id="sendList"><p class="empty">Click players on your roster above</p></div>
+      <div class="trade-list" id="sendList"><p class="empty">Click your players below to add</p></div>
+      <div style="margin-top:10px">
+        <div style="color:#aaa;font-size:.78rem;margin-bottom:6px">👇 Your roster — click to add:</div>
+        <div class="roster-grid" id="myRoster" style="max-height:280px;overflow-y:auto"></div>
+      </div>
       <!-- Your picks to send -->
       <div class="pick-builder" style="margin-top:10px">
         <label>Add a draft pick to send:</label>
@@ -740,6 +752,28 @@ function resetTeam(){
   save();renderRoster();renderSend();renderRecv();renderLog();renderStats();
 }
 
+function renderRosterTable(){
+  const el = document.getElementById('rosterTable');
+  if(!el) return;
+  if(!S.roster.length){el.innerHTML='<p class="empty">No roster yet.</p>';return;}
+  const sorted = [...S.roster].sort((a,b)=>(OVR2K[b.name]||b.ovr)-(OVR2K[a.name]||a.ovr));
+  el.innerHTML = `<table class="roster-table">
+    <thead><tr><th>#</th><th>Player</th><th>POS</th><th>OVR</th><th>Age</th></tr></thead>
+    <tbody>${sorted.map((p,i)=>{
+      const ovr=OVR2K[p.name]||p.ovr;
+      const age=AGES[p.name]||27;
+      const flag=S.rebuildMode&&age>=30?'🔴':'';
+      return `<tr>
+        <td class="r-flag">${flag||i+1}</td>
+        <td class="r-name">${p.name}</td>
+        <td class="r-pos">${p.pos}</td>
+        <td class="r-ovr">${ovr}</td>
+        <td class="r-age">${age}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
 function renderRoster(){
   const g=document.getElementById('myRoster');
   if(!S.team){g.innerHTML='';return;}
@@ -1107,6 +1141,7 @@ function renderStats(){
   const avg2k=S.roster.length?Math.round(S.roster.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/S.roster.length):0;
   document.getElementById('sA').textContent=avg2k||'—';
   updateMyTeamRating();
+  renderRosterTable();
 }
 
 init();
