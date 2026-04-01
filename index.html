@@ -547,8 +547,7 @@ function startCareer(team){
   save();
   document.getElementById('startScreen').classList.add('hidden');
   document.getElementById('mainApp').style.display = '';
-  document.getElementById('myTeam').value = team;
-  renderRoster();
+  renderRosterTable();
   renderStats();
   renderDraftPage();
   showPage('roster');
@@ -778,7 +777,7 @@ function init(){
   const teams=Object.keys(TEAMS).sort();
 
   // Populate team selects
-  ['myTeam','otherTeam','sendPickOwner','recvPickOwner'].forEach(id=>{
+  ['otherTeam','sendPickOwner','recvPickOwner'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
     teams.forEach(t=>{
@@ -798,11 +797,20 @@ function init(){
   });
 
   load();
+  // If old save has myTeam select ref or broken state, reset
+  if(S.team && !S.careerStarted) {
+    // Legacy save — migrate it
+    S.careerStarted = true;
+    save();
+  }
   initStartScreen();
-  if(S.careerStarted&&S.team){
+  if(S.careerStarted && S.team){
     document.getElementById('startScreen').classList.add('hidden');
     document.getElementById('mainApp').style.display='';
-    document.getElementById('myTeam').value=S.team;
+    // Make sure roster has 2K OVRs
+    S.roster.forEach(p=>{ p.ovr = OVR2K[p.name]||p.ovr; });
+    renderRosterTable();
+    renderStats();
     renderDraftPage();
     // Restore last page
     try{const lp=sessionStorage.getItem('nba_page');if(lp&&PAGE_MAP[lp])showPage(lp);}catch(e){}
@@ -868,6 +876,7 @@ function renderRosterTable(){
 
 function renderRoster(){
   const g=document.getElementById('myRoster');
+  if(!g) return; // not on trade page, skip
   if(!S.team){g.innerHTML='';return;}
   g.innerHTML='';
   S.roster.forEach((p,i)=>{
