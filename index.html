@@ -127,6 +127,12 @@ input::placeholder{color:#555}
 .navbar::-webkit-scrollbar{height:3px}.navbar::-webkit-scrollbar-thumb{background:#333}
 .nav-btn{background:none;border:none;color:#888;padding:12px 16px;font-size:.85rem;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:all .15s;font-weight:600}
 .nav-btn:hover{color:#eee}.nav-btn.active{color:#f5c518;border-bottom-color:#f5c518}
+/* CUSTOM PLAYER */
+.custom-player-form{background:#111;border:1px solid #333;border-radius:10px;padding:16px;margin-top:14px}
+.custom-player-form h3{color:#f5c518;font-size:.9rem;margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-group label{color:#888;font-size:.78rem;display:block;margin-bottom:4px}
+.form-group input,.form-group select{width:100%;background:#2a2a2a;border:1px solid #444;border-radius:7px;padding:8px 10px;color:#eee;font-size:.88rem}
 /* SIM YEAR */
 .sim-card{background:#1a1500;border:1px solid #f57c00;border-radius:12px;padding:20px;margin-bottom:20px}
 .sim-card h2{color:#f5c518;margin-bottom:10px}
@@ -172,6 +178,39 @@ input::placeholder{color:#555}
   </div>
   <div class="rebuild-banner" id="rebuildBanner">🔨 <strong>Rebuild Mode ON</strong> — Focus on youth &amp; picks. Players 30+ flagged. Prioritize future value.</div>
   <div id="rosterTable"></div>
+  
+  <!-- Custom Player -->
+  <div style="margin-top:16px">
+    <button class="btn-sm" onclick="toggleCustomForm()" id="customFormToggle">➕ Add Custom Player</button>
+    <div class="custom-player-form" id="customPlayerForm" style="display:none">
+      <h3>➕ Create Custom Player</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" id="cpName" placeholder="Player name"/>
+        </div>
+        <div class="form-group">
+          <label>Position</label>
+          <select id="cpPos">
+            <option>PG</option><option>SG</option><option>SF</option><option>PF</option><option>C</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Overall (60–99)</label>
+          <input type="number" id="cpOvr" min="60" max="99" placeholder="e.g. 85"/>
+        </div>
+        <div class="form-group">
+          <label>Age</label>
+          <input type="number" id="cpAge" min="18" max="45" placeholder="e.g. 22"/>
+        </div>
+        <div class="form-group">
+          <label>Ceiling (OVR potential)</label>
+          <input type="number" id="cpCeiling" min="60" max="99" placeholder="e.g. 92"/>
+        </div>
+      </div>
+      <button class="btn" onclick="addCustomPlayer()" style="margin-top:4px">✅ Add to Roster</button>
+    </div>
+  </div>
 </div>
 
 <!-- Trade Builder -->
@@ -759,6 +798,46 @@ function executeDraft(){
   alert(`🎓 ${prospect.name} drafted! OVR ${prospect.ovr} ${prospect.pos} added to your roster.`);
 }
 
+// ── CUSTOM PLAYER ─────────────────────────────────────────────────────────────
+function toggleCustomForm(){
+  const form = document.getElementById('customPlayerForm');
+  const btn = document.getElementById('customFormToggle');
+  const isHidden = form.style.display === 'none';
+  form.style.display = isHidden ? '' : 'none';
+  btn.textContent = isHidden ? '✕ Cancel' : '➕ Add Custom Player';
+}
+
+function addCustomPlayer(){
+  const name = document.getElementById('cpName').value.trim();
+  const pos = document.getElementById('cpPos').value;
+  const ovr = parseInt(document.getElementById('cpOvr').value);
+  const age = parseInt(document.getElementById('cpAge').value);
+  const ceiling = parseInt(document.getElementById('cpCeiling').value)||ovr;
+
+  if(!name) return alert('Enter a player name!');
+  if(!ovr||ovr<60||ovr>99) return alert('OVR must be between 60 and 99!');
+  if(!age||age<18||age>45) return alert('Age must be between 18 and 45!');
+  if(S.roster.length >= 18) return alert('Roster is full! Max 18 players.');
+
+  // Add to roster
+  S.roster.push({name, pos, ovr, custom:true});
+  OVR2K[name] = ovr;
+  AGES[name] = age;
+  DEMAND[name] = ovr >= 90 ? 1.2 : ovr >= 85 ? 1.1 : 1.0;
+
+  // Clear form
+  document.getElementById('cpName').value = '';
+  document.getElementById('cpOvr').value = '';
+  document.getElementById('cpAge').value = '';
+  document.getElementById('cpCeiling').value = '';
+  toggleCustomForm();
+
+  save();
+  renderRosterTable();
+  renderStats();
+  alert(`✅ ${name} (${pos}, OVR ${ovr}) added to your roster!`);
+}
+
 function toggleRebuild(){
   S.rebuildMode=!S.rebuildMode;
   const btn=document.getElementById('rebuildBtn');
@@ -983,32 +1062,32 @@ function updBtn(){
 // ── TRADE EVALUATION ──────────────────────────────────────────────────────────
 // Player ages (approximate, based on 2025-26 season)
 const AGES = {
-  'Nikola Jokic':31,'Shai Gilgeous-Alexander':27,'Luka Doncic':26,'Giannis Antetokounmpo':31,
-  'Jayson Tatum':27,'Stephen Curry':37,'Joel Embiid':32,'Kevin Durant':36,'Devin Booker':28,
-  'Anthony Edwards':24,'LeBron James':40,'Donovan Mitchell':28,'Ja Morant':25,'Bam Adebayo':28,
-  'Tyrese Haliburton':25,'Jalen Brunson':28,'Cade Cunningham':24,"De'Aaron Fox":27,
-  'Domantas Sabonis':29,'Scottie Barnes':24,'Karl-Anthony Towns':29,'Victor Wembanyama':21,
-  'Paolo Banchero':22,'Franz Wagner':23,'Tyrese Maxey':25,'Zion Williamson':24,
-  'Trae Young':26,'Cam Thomas':23,'Alperen Sengun':23,'Jalen Green':23,'Evan Mobley':23,
-  'Darius Garland':25,'Jamal Murray':28,'Anthony Davis':31,'Damian Lillard':34,
-  'Khris Middleton':33,'Brook Lopez':37,'Alex Caruso':31,'Jalen Williams':24,
-  'Chet Holmgren':23,'Jaylen Brown':28,'Jimmy Butler':35,'Tyler Herro':25,
+  'Nikola Jokic':98,'Shai Gilgeous-Alexander':98,'Luka Doncic':95,'Giannis Antetokounmpo':97,
+  'Jayson Tatum':27,'Stephen Curry':94,'Joel Embiid':92,'Kevin Durant':93,'Devin Booker':91,
+  'Anthony Edwards':95,'LeBron James':94,'Donovan Mitchell':93,'Ja Morant':91,'Bam Adebayo':88,
+  'Tyrese Haliburton':93,'Jalen Brunson':93,'Cade Cunningham':92,"De'Aaron Fox":27,
+  'Domantas Sabonis':87,'Scottie Barnes':85,'Karl-Anthony Towns':92,'Victor Wembanyama':94,
+  'Paolo Banchero':89,'Franz Wagner':86,'Tyrese Maxey':86,'Zion Williamson':87,
+  'Trae Young':90,'Cam Thomas':23,'Alperen Sengun':87,'Jalen Green':83,'Evan Mobley':89,
+  'Darius Garland':87,'Jamal Murray':86,'Anthony Davis':93,'Damian Lillard':88,
+  'Khris Middleton':33,'Brook Lopez':37,'Alex Caruso':82,'Jalen Williams':90,
+  'Chet Holmgren':88,'Jaylen Brown':28,'Jimmy Butler':87,'Tyler Herro':86,
   'Zach LaVine':29,'Coby White':24,'Josh Giddey':22,'LaMelo Ball':23,
-  'Brandon Miller':22,'Miles Bridges':27,'Jaren Jackson Jr.':25,'Desmond Bane':26,
-  'Rudy Gobert':32,'Jaden McDaniels':24,'Julius Randle':30,'OG Anunoby':27,
-  'Mikal Bridges':27,'RJ Barrett':24,'Immanuel Quickley':25,'Jakob Poeltl':30,
-  'Lauri Markkanen':27,'Walker Kessler':23,'Collin Sexton':26,'Pascal Siakam':31,
-  'Scoot Henderson':21,'Anfernee Simons':26,'Deandre Ayton':26,'Shaedon Sharpe':21,
-  'Deni Avdija':24,'Jordan Poole':25,'Bilal Coulibaly':21,'Alexandre Sarr':21,
-  'Paul George':34,'Kawhi Leonard':33,'James Harden':35,'Dejounte Murray':28,
-  'Brandon Ingram':27,'CJ McCollum':33,'Herb Jones':25,'Trey Murphy III':24,
-  'Gary Trent Jr.':26,'Terry Rozier':31,'Myles Turner':29,'Bobby Portis':30,
+  'Brandon Miller':22,'Miles Bridges':27,'Jaren Jackson Jr.':89,'Desmond Bane':26,
+  'Rudy Gobert':84,'Jaden McDaniels':24,'Julius Randle':86,'OG Anunoby':85,
+  'Mikal Bridges':84,'RJ Barrett':82,'Immanuel Quickley':81,'Jakob Poeltl':80,
+  'Lauri Markkanen':84,'Walker Kessler':82,'Collin Sexton':26,'Pascal Siakam':89,
+  'Scoot Henderson':79,'Anfernee Simons':81,'Deandre Ayton':80,'Shaedon Sharpe':81,
+  'Deni Avdija':82,'Jordan Poole':78,'Bilal Coulibaly':76,'Alexandre Sarr':81,
+  'Paul George':81,'Kawhi Leonard':92,'James Harden':89,'Dejounte Murray':81,
+  'Brandon Ingram':84,'CJ McCollum':81,'Herb Jones':81,'Trey Murphy III':24,
+  'Gary Trent Jr.':26,'Terry Rozier':31,'Myles Turner':83,'Bobby Portis':30,
   'Kyle Kuzma':29,'Ousmane Dieng':22,'AJ Green':25,'Dyson Daniels':22,
   'Jalen Johnson':23,'Nic Claxton':25,'Noah Clowney':22,'Jaylin Williams':22,
   'Mark Williams':23,'Grant Williams':25,'Josh Green':24,'Zach Collins':27,
-  'Matas Buzelis':21,'Isaiah Stewart':24,'Ron Holland II':21,'Jalen Duren':21,
-  'Jonathan Kuminga':22,'Andrew Wiggins':29,'Buddy Hield':33,'Moses Moody':23,
-  'Amen Thompson':22,'Jabari Smith Jr.':22,'Tari Eason':24,'Fred VanVleet':31,
+  'Matas Buzelis':21,'Isaiah Stewart':24,'Ron Holland II':21,'Jalen Duren':82,
+  'Jonathan Kuminga':82,'Andrew Wiggins':29,'Buddy Hield':33,'Moses Moody':23,
+  'Amen Thompson':87,'Jabari Smith Jr.':22,'Tari Eason':24,'Fred VanVleet':31,
   'Andrew Nembhard':25,'Bennedict Mathurin':23,'Aaron Nesmith':25,'Obi Toppin':27,
   'Nikola Topic':20,'Cason Wallace':22,'Aaron Wiggins':26,'Payton Sandfort':22,
   'Isaiah Hartenstein':27,'Isaiah Joe':25,'Kenrich Williams':30,
@@ -1016,37 +1095,37 @@ const AGES = {
 
 // Demand multiplier — high-demand players worth more in trade
 const DEMAND = {
-  'Nikola Jokic':1.3,'Shai Gilgeous-Alexander':1.3,'Luka Doncic':1.3,
-  'Giannis Antetokounmpo':1.25,'Jayson Tatum':1.2,'Stephen Curry':1.15,
-  'Joel Embiid':1.2,'Kevin Durant':1.2,'Devin Booker':1.15,'Anthony Edwards':1.25,
-  'LeBron James':1.1,'Donovan Mitchell':1.15,'Ja Morant':1.2,'Victor Wembanyama':1.3,
-  'Paolo Banchero':1.2,'Franz Wagner':1.15,'Tyrese Maxey':1.15,'Cade Cunningham':1.15,
-  'Tyrese Haliburton':1.15,'Jalen Brunson':1.15,'Zion Williamson':1.1,
-  'Trae Young':1.05,'Cam Thomas':1.1,'Alperen Sengun':1.15,'Jalen Green':1.1,
-  'Evan Mobley':1.15,'LaMelo Ball':1.1,'Anthony Davis':1.15,
+  'Nikola Jokic':98.3,'Shai Gilgeous-Alexander':98.3,'Luka Doncic':95.3,
+  'Giannis Antetokounmpo':97.25,'Jayson Tatum':1.2,'Stephen Curry':94.15,
+  'Joel Embiid':92.2,'Kevin Durant':93.2,'Devin Booker':91.15,'Anthony Edwards':95.25,
+  'LeBron James':94.1,'Donovan Mitchell':93.15,'Ja Morant':91.2,'Victor Wembanyama':94.3,
+  'Paolo Banchero':89.2,'Franz Wagner':86.15,'Tyrese Maxey':86.15,'Cade Cunningham':92.15,
+  'Tyrese Haliburton':93.15,'Jalen Brunson':93.15,'Zion Williamson':87.1,
+  'Trae Young':90.05,'Cam Thomas':1.1,'Alperen Sengun':87.15,'Jalen Green':83.1,
+  'Evan Mobley':89.15,'LaMelo Ball':1.1,'Anthony Davis':93.15,
 };
 
 // Estimated salaries (millions) for matching
 const SALARIES = {
-  'Nikola Jokic':47.6,'Shai Gilgeous-Alexander':38.3,'Luka Doncic':46.1,
-  'Giannis Antetokounmpo':54.1,'Jayson Tatum':54.1,'Stephen Curry':55.8,
-  'Joel Embiid':51.4,'Kevin Durant':51.2,'Devin Booker':49.2,'Anthony Edwards':44.2,
-  'LeBron James':52.0,'Donovan Mitchell':37.1,'Ja Morant':40.6,'Bam Adebayo':38.5,
-  'Tyrese Haliburton':34.0,'Jalen Brunson':36.0,'Cade Cunningham':35.6,
-  "De'Aaron Fox":30.4,'Domantas Sabonis':38.5,'Scottie Barnes':31.6,
-  'Karl-Anthony Towns':50.2,'Victor Wembanyama':12.1,'Paolo Banchero':13.4,
-  'Franz Wagner':22.0,'Tyrese Maxey':29.3,'Zion Williamson':37.4,
-  'Trae Young':43.0,'Cam Thomas':5.8,'Alperen Sengun':17.5,'Jalen Green':40.0,
-  'Evan Mobley':23.5,'Darius Garland':37.1,'Jamal Murray':41.0,'Anthony Davis':43.2,
-  'Damian Lillard':48.8,'Khris Middleton':28.0,'Brook Lopez':13.5,
-  'Alex Caruso':18.1,'Jalen Williams':6.6,'Chet Holmgren':13.7,
-  'Jaylen Brown':49.3,'Jimmy Butler':48.8,'Tyler Herro':32.6,
+  'Nikola Jokic':98.6,'Shai Gilgeous-Alexander':98.3,'Luka Doncic':95.1,
+  'Giannis Antetokounmpo':97.1,'Jayson Tatum':54.1,'Stephen Curry':94.8,
+  'Joel Embiid':92.4,'Kevin Durant':93.2,'Devin Booker':91.2,'Anthony Edwards':95.2,
+  'LeBron James':94.0,'Donovan Mitchell':93.1,'Ja Morant':91.6,'Bam Adebayo':88.5,
+  'Tyrese Haliburton':93.0,'Jalen Brunson':93.0,'Cade Cunningham':92.6,
+  "De'Aaron Fox":30.4,'Domantas Sabonis':87.5,'Scottie Barnes':85.6,
+  'Karl-Anthony Towns':92.2,'Victor Wembanyama':94.1,'Paolo Banchero':89.4,
+  'Franz Wagner':86.0,'Tyrese Maxey':86.3,'Zion Williamson':87.4,
+  'Trae Young':90.0,'Cam Thomas':5.8,'Alperen Sengun':87.5,'Jalen Green':83.0,
+  'Evan Mobley':89.5,'Darius Garland':87.1,'Jamal Murray':86.0,'Anthony Davis':93.2,
+  'Damian Lillard':88.8,'Khris Middleton':28.0,'Brook Lopez':13.5,
+  'Alex Caruso':82.1,'Jalen Williams':90.6,'Chet Holmgren':88.7,
+  'Jaylen Brown':49.3,'Jimmy Butler':87.8,'Tyler Herro':86.6,
   'Zach LaVine':43.9,'Coby White':18.6,'Josh Giddey':7.5,'LaMelo Ball':36.3,
-  'Brandon Miller':11.4,'Jaren Jackson Jr.':37.0,'Rudy Gobert':41.0,
-  'Julius Randle':27.9,'OG Anunoby':19.5,'Mikal Bridges':24.1,
-  'RJ Barrett':22.0,'Immanuel Quickley':19.5,'Lauri Markkanen':30.7,
-  'Walker Kessler':3.8,"De'Aaron Fox":30.4,'Pascal Siakam':35.3,
-  'Paul George':38.6,'Kawhi Leonard':35.5,'James Harden':35.6,
+  'Brandon Miller':11.4,'Jaren Jackson Jr.':89.0,'Rudy Gobert':84.0,
+  'Julius Randle':86.9,'OG Anunoby':85.5,'Mikal Bridges':84.1,
+  'RJ Barrett':82.0,'Immanuel Quickley':81.5,'Lauri Markkanen':84.7,
+  'Walker Kessler':82.8,"De'Aaron Fox":30.4,'Pascal Siakam':89.3,
+  'Paul George':81.6,'Kawhi Leonard':92.5,'James Harden':89.6,
 };
 
 function playerValue(p) {
