@@ -259,6 +259,20 @@ input::placeholder{color:#555}
     <span id="simYearCount" style="color:#888;font-size:.82rem"></span>
   </div>
   <div id="simLog" style="margin-top:12px;font-size:.82rem;color:#aaa"></div>
+  <!-- Record input - shows after simming -->
+  <div id="recordSection" style="display:none;margin-top:16px;background:#111;border-radius:10px;padding:16px;border:1px solid #333">
+    <h3 style="color:#f5c518;font-size:.9rem;margin-bottom:10px">📊 Enter Your Season Record</h3>
+    <p style="color:#888;font-size:.82rem;margin-bottom:12px">Your record determines your draft lottery odds — worse record = better pick position = stronger prospects.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="recordWins" min="0" max="82" placeholder="Wins" style="width:80px;background:#2a2a2a;border:1px solid #444;border-radius:8px;padding:8px;color:#eee;font-size:.9rem">
+        <span style="color:#888">—</span>
+        <input type="number" id="recordLosses" min="0" max="82" placeholder="Losses" style="width:80px;background:#2a2a2a;border:1px solid #444;border-radius:8px;padding:8px;color:#eee;font-size:.9rem">
+      </div>
+      <button class="btn" onclick="submitRecord()" style="padding:8px 16px">📋 Set Draft Position</button>
+    </div>
+    <div id="draftPositionResult" style="margin-top:10px;font-size:.85rem"></div>
+  </div>
 </div>
 
 <div class="page card" id="log-section" style="display:none">
@@ -473,13 +487,26 @@ function simYear(){
   save();
   renderRoster();
   renderStats();
-  // Add draft picks for new season
+  // Add next year's picks
   if(!S.draftPicks) S.draftPicks=[];
-  const newPick1 = {year:S.season,round:'1st Round',owner:S.team};
-  const newPick2 = {year:S.season,round:'2nd Round',owner:S.team};
-  S.draftPicks.push(newPick1,newPick2);
-  log.push(`📋 Added: ${S.season} 1st Round & 2nd Round picks`);
+  const nextYr=S.season;
+  // Check if we already have this year's picks
+  const has1st=S.draftPicks.find(p=>p.year===nextYr&&p.round==='1st Round'&&p.owner===S.team);
+  if(!has1st){
+    S.draftPicks.push({year:nextYr,round:'1st Round',owner:S.team});
+    S.draftPicks.push({year:nextYr,round:'2nd Round',owner:S.team});
+    log.push(`📋 Added: ${nextYr} 1st & 2nd Round picks`);
+  }
+  // Show record input modal
+  S.pendingRecord = true;
   renderDraftPage();
+  save();
+  // Show record section
+  setTimeout(()=>{
+    showPage('sim');
+    const rs=document.getElementById('recordSection');
+    if(rs){rs.style.display='';rs.scrollIntoView({behavior:'smooth'});}
+  },300);
   alert(`✅ Season simmed! ${developed} players improved, ${declined} declined. Welcome to ${S.season-1}-${String(S.season).slice(2)}!`);
 }
 
@@ -509,7 +536,12 @@ function startCareer(team){
   S.recvPicks = [];
   S.season = 2026;
   S.yearsSimmed = 0;
+  // Generate team's own picks 2026-2031
   S.draftPicks = [];
+  for(let yr=2026;yr<=2031;yr++){
+    S.draftPicks.push({year:yr,round:'1st Round',owner:team});
+    S.draftPicks.push({year:yr,round:'2nd Round',owner:team});
+  }
   S.draftHistory = [];
   S.careerStarted = true;
   save();
@@ -540,26 +572,62 @@ let currentProspects = [];
 let selectedProspect = null;
 let selectedPickIdx = null;
 
+function submitRecord(){
+  const wins = parseInt(document.getElementById('recordWins').value)||0;
+  const losses = parseInt(document.getElementById('recordLosses').value)||0;
+  if(wins+losses===0) return alert('Enter your record!');
+  // Calculate draft position (1=worst, 30=best record)
+  const winPct = wins/(wins+losses);
+  // Worse record = lower draft position number = better pick
+  S.draftPosition = Math.max(1, Math.min(30, Math.round(winPct * 29) + 1));
+  S.lastRecord = {wins, losses};
+  S.pendingRecord = false;
+  
+  const tier = S.draftPosition <= 5 ? '🔴 Lottery Pick (Top 5)' : S.draftPosition <= 14 ? '🟡 Lottery (6-14)' : '🟢 Middle/Late Pick';
+  const result = document.getElementById('draftPositionResult');
+  result.innerHTML = `<div style="color:#f5c518">Draft Position: <strong>#${S.draftPosition}</strong> — ${tier}</div>
+    <div style="color:#aaa;margin-top:4px">Record: ${wins}-${losses} (${Math.round(winPct*100)}% win rate) — ${wins<=25?'Better prospects available':'Good season!'}</div>`;
+  document.getElementById('recordSection').style.display='none';
+  save();
+  renderDraftPage();
+}
+
 function genProspects(){
   currentProspects = [];
   const used = new Set();
+  const pick = selectedPickIdx!==null ? S.draftPicks[selectedPickIdx] : null;
+  const is1st = pick?.round==='1st Round';
+  const pos = S.draftPosition||15; // 1=best pick, 30=worst
+  
+  // Base OVR: lottery pick = better players
+  // pos 1-5: base 76-82, pos 6-14: base 71-78, pos 15-30: base 64-72
+  const getBaseOvr = () => {
+    if(!is1st) return 63 + Math.floor(Math.random()*10);
+    if(pos<=5) return 76 + Math.floor(Math.random()*8);
+    if(pos<=14) return 71 + Math.floor(Math.random()*9);
+    return 64 + Math.floor(Math.random()*10);
+  };
+  
   for(let i=0;i<10;i++){
     let name;
     do {
       name = FIRST_NAMES[Math.floor(Math.random()*FIRST_NAMES.length)]+' '+LAST_NAMES[Math.floor(Math.random()*LAST_NAMES.length)];
     } while(used.has(name));
     used.add(name);
-    const pos = POSITIONS[Math.floor(Math.random()*POSITIONS.length)];
-    const age = 18 + Math.floor(Math.random()*5);
-    // OVR based on pick round
-    const baseOvr = selectedPickIdx!==null && S.draftPicks[selectedPickIdx]?.round==='1st Round' ? 72 : 65;
-    const ovr = baseOvr + Math.floor(Math.random()*12);
-    const potential = ovr + Math.floor(Math.random()*15); // hidden potential shown as +ceiling
-    currentProspects.push({name,pos,age,ovr,potential});
+    const pos2 = POSITIONS[Math.floor(Math.random()*POSITIONS.length)];
+    const age = 18 + Math.floor(Math.random()*4);
+    const ovr = getBaseOvr();
+    const potential = Math.min(99, ovr + Math.floor(Math.random()*18));
+    currentProspects.push({name,pos:pos2,age,ovr,potential});
   }
+  // Sort best to worst
+  currentProspects.sort((a,b)=>b.ovr-a.ovr);
 }
 
 function renderDraftPage(){
+  // Show/hide record section
+  const rs=document.getElementById('recordSection');
+  if(rs) rs.style.display = S.pendingRecord ? '' : 'none';
   // Update pick inventory
   const pickList = document.getElementById('pickList');
   const draftControls = document.getElementById('draftControls');
@@ -586,7 +654,8 @@ function renderDraftPage(){
   draftControls.style.display = '';
   pickList.innerHTML = myPicks.map((pk,i)=>{
     const used = (S.usedPicks||[]).find(u=>u.year===pk.year&&u.round===pk.round&&u.owner===pk.owner);
-    return `<span class="pick-tag${used?' used':''}" onclick="${used?'':'selectPick('+i+')'}">${pk.year} ${pk.round} (${pk.owner})</span>`;
+    const isSelected = selectedPickIdx===i;
+    return `<span class="pick-tag${used?' used':''}${isSelected?' selected':''}" onclick="${used?'':'selectPick('+i+')'}" style="${isSelected?'border-color:#f5c518;color:#f5c518;background:#2a2800':''}">${pk.year} ${pk.round} (${pk.owner})</span>`;
   }).join('');
   
   // Render prospects if pick selected
