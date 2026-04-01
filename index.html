@@ -854,8 +854,8 @@ function calc2KTeamOvr(roster){
   if(!roster.length) return 0;
   // Top 5 players count triple, rest count once — stars carry the rating
   const sorted = [...roster].sort((a,b)=>(OVR2K[b.name]||b.ovr)-(OVR2K[a.name]||a.ovr));
-  const top5 = sorted.slice(0,5);
-  const rest = sorted.slice(5);
+  const top5 = sorted.slice(0,4);
+  const rest = sorted.slice(4);
   const top5sum = top5.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)*3;
   const restsum = rest.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0);
   const total = top5sum + restsum;
