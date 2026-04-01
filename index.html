@@ -83,7 +83,33 @@ input::placeholder{color:#555}
 .rebuild-banner{background:#1a0a00;border:1px solid #f57c00;border-radius:8px;padding:8px 14px;font-size:.82rem;color:#ff9800;margin-bottom:14px;display:none}
 .rebuild-banner.active{display:block}
 
-/* PAGES */
+/* START SCREEN */
+.start-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0a;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.start-screen.hidden{display:none}
+.start-logo{font-size:3rem;margin-bottom:8px}
+.start-title{font-size:2rem;font-weight:700;color:#f5c518;margin-bottom:4px}
+.start-sub{color:#888;margin-bottom:30px;font-size:.95rem}
+.start-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;width:100%;max-width:800px;max-height:60vh;overflow-y:auto;padding:4px}
+.start-team-btn{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px;cursor:pointer;color:#eee;font-size:.9rem;font-weight:600;transition:all .15s;text-align:left}
+.start-team-btn:hover{border-color:#f5c518;background:#2a2800;color:#f5c518}
+.start-team-btn .team-ovr{font-size:.75rem;color:#888;margin-top:3px}
+/* END CAREER */
+.end-career-btn{background:none;border:1px solid #b00020;color:#f44336;border-radius:7px;padding:6px 14px;font-size:.82rem;cursor:pointer;margin-left:auto}
+.end-career-btn:hover{background:#b00020;color:#fff}
+/* DRAFT PAGE */
+.prospect-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
+.prospect-card{background:#1a1a2a;border:1px solid #334;border-radius:8px;padding:12px;cursor:pointer;transition:all .15s}
+.prospect-card:hover{border-color:#4fc3f7;background:#1a2030}
+.prospect-card.selected{border-color:#4fc3f7;background:#0d2040}
+.prospect-name{font-weight:700;font-size:.88rem}
+.prospect-pos{color:#888;font-size:.72rem;margin-top:2px}
+.prospect-ovr{color:#4fc3f7;font-size:.78rem;margin-top:3px}
+.pick-inventory{background:#1e1e00;border:1px solid #444;border-radius:8px;padding:12px;margin-bottom:14px}
+.pick-inventory h3{color:#f5c518;font-size:.9rem;margin-bottom:8px}
+.pick-tag{display:inline-block;background:#2a2800;border:1px solid #f57c00;border-radius:6px;padding:3px 10px;font-size:.78rem;color:#f5c518;margin:3px;cursor:pointer}
+.pick-tag:hover{background:#3a3800}
+.pick-tag.used{background:#1a1a1a;border-color:#333;color:#555;cursor:not-allowed}
+/* /* PAGES */
 .page{animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 /* NAV BAR */
@@ -99,12 +125,22 @@ input::placeholder{color:#555}
 </style>
 </head>
 <body>
-<div class="container">
+<!-- START SCREEN -->
+<div class="start-screen" id="startScreen">
+  <div class="start-logo">🏀</div>
+  <div class="start-title">NBA Trade Machine</div>
+  <div class="start-sub">2025-26 Season · Pick your franchise and start your rebuild</div>
+  <div class="start-team-grid" id="startTeamGrid"></div>
+</div>
+
+<div class="container" id="mainApp" style="display:none">
 <nav class="navbar">
   <button class="nav-btn active" id="nav-roster" onclick="showPage('roster')">🏟️ My Team</button>
   <button class="nav-btn" id="nav-trade" onclick="showPage('trade')">🔄 Trade</button>
+  <button class="nav-btn" id="nav-draft" onclick="showPage('draft')">🎓 Draft</button>
   <button class="nav-btn" id="nav-sim" onclick="showPage('sim')">📅 Sim Year</button>
   <button class="nav-btn" id="nav-log" onclick="showPage('log')">📋 History</button>
+  <button class="end-career-btn" onclick="endCareer()">⏹ End Career</button>
 </nav>
 <h1>🏀 NBA Trade Machine</h1>
 <p class="subtitle">2025-26 Season · Full Rosters · Draft Picks</p>
@@ -182,6 +218,26 @@ input::placeholder{color:#555}
 
 <!-- Trade Log -->
 <!-- SIM YEAR -->
+<!-- DRAFT PAGE -->
+<div class="page card" id="draft-section" style="display:none">
+  <h2>🎓 Draft</h2>
+  <div class="pick-inventory" id="pickInventory">
+    <h3>📋 Your Draft Picks</h3>
+    <div id="pickList"><p class="empty">No picks in inventory. Acquire picks through trades.</p></div>
+  </div>
+  <div id="draftControls" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="color:#aaa;font-size:.85rem">Select a pick to use, then draft one prospect:</div>
+      <button class="btn-sm" onclick="rerollProspects()">🔄 Reroll Prospects</button>
+    </div>
+    <div class="prospect-grid" id="prospectGrid"></div>
+    <div style="margin-top:14px">
+      <button class="btn" id="draftBtn" onclick="executeDraft()" disabled>🎓 Draft Selected Prospect</button>
+    </div>
+  </div>
+  <div id="draftHistory" style="margin-top:16px"></div>
+</div>
+
 <div class="page sim-card" id="sim-section" style="display:none">
   <h2>📅 Sim Year</h2>
   <div class="season-badge" id="seasonBadge">2025-26 Season</div>
@@ -201,7 +257,7 @@ input::placeholder{color:#555}
     <button class="btn-sm" onclick="clearLog()">🗑️ Clear History</button>
   </div>
 </div>
-</div>
+</div><!-- end main app -->
 
 <script>
 // ── 2025-26 ROSTERS (live from ESPN, March 2026) ─────────────────────────────
@@ -322,14 +378,14 @@ const OVR2K = {
 };
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let S = {team:"",roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false,season:2026,yearsSimmed:0};
+let S = {team:'',roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false,season:2026,yearsSimmed:0,draftPicks:[],draftHistory:[],usedPicks:[],careerStarted:false};
 const KEY = "nba_tm_v3";
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const load=()=>{try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);}catch(e){}};
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 // ── PAGE ROUTING ─────────────────────────────────────────────────────────────
-const PAGE_MAP = {'roster':'roster-section','trade':'trade-section','sim':'sim-section','log':'log-section'};
+const PAGE_MAP = {'roster':'roster-section','trade':'trade-section','draft':'draft-section','sim':'sim-section','log':'log-section'};
 let currentPage = 'roster';
 
 function showPage(page){
@@ -405,7 +461,202 @@ function simYear(){
   save();
   renderRoster();
   renderStats();
+  // Add draft picks for new season
+  if(!S.draftPicks) S.draftPicks=[];
+  const newPick1 = {year:S.season,round:'1st Round',owner:S.team};
+  const newPick2 = {year:S.season,round:'2nd Round',owner:S.team};
+  S.draftPicks.push(newPick1,newPick2);
+  log.push(`📋 Added: ${S.season} 1st Round & 2nd Round picks`);
+  renderDraftPage();
   alert(`✅ Season simmed! ${developed} players improved, ${declined} declined. Welcome to ${S.season-1}-${String(S.season).slice(2)}!`);
+}
+
+// ── START SCREEN ──────────────────────────────────────────────────────────────
+function initStartScreen(){
+  const grid = document.getElementById('startTeamGrid');
+  grid.innerHTML = '';
+  Object.keys(TEAMS).sort().forEach(team=>{
+    const players = TEAMS[team];
+    const avg = Math.round(players.reduce((a,p)=>a+(OVR2K[p.name]||p.ovr),0)/players.length);
+    const star = players.reduce((best,p)=>((OVR2K[p.name]||p.ovr)>(OVR2K[best.name]||best.ovr)?p:best), players[0]);
+    const btn = document.createElement('button');
+    btn.className = 'start-team-btn';
+    btn.innerHTML = `<div>${team}</div><div class="team-ovr">OVR ${avg} · ⭐ ${star.name}</div>`;
+    btn.onclick = () => startCareer(team);
+    grid.appendChild(btn);
+  });
+}
+
+function startCareer(team){
+  S.team = team;
+  S.roster = TEAMS[team].map(p=>({...p, ovr:OVR2K[p.name]||p.ovr}));
+  S.trades = [];
+  S.sending = [];
+  S.sendPicks = [];
+  S.receiving = [];
+  S.recvPicks = [];
+  S.season = 2026;
+  S.yearsSimmed = 0;
+  S.draftPicks = [];
+  S.draftHistory = [];
+  S.careerStarted = true;
+  save();
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('mainApp').style.display = '';
+  document.getElementById('myTeam').value = team;
+  renderRoster();
+  renderStats();
+  renderDraftPage();
+  showPage('roster');
+}
+
+function endCareer(){
+  if(!confirm('End your career? All progress will be lost.')) return;
+  S = {team:'',roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false,season:2026,yearsSimmed:0,draftPicks:[],draftHistory:[],careerStarted:false};
+  save();
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('startScreen').classList.remove('hidden');
+  document.getElementById('startScreen').style.display = '';
+  initStartScreen();
+}
+
+// ── DRAFT ─────────────────────────────────────────────────────────────────────
+const FIRST_NAMES = ['Jaylen','Marcus','Jordan','Zaire','Elijah','Isaiah','Malik','Darius','Trevon','DeShawn','Quincy','Jabari','Kevon','Deven','Tyrell','Corey','Rasheed','Brandon','Curtis','Terrell','Andre','Dominic','Xavier','Miles','Caleb','Damien','Kendrick','Troy','Devante','Alonzo','Tyrone','Marquis'];
+const LAST_NAMES = ['Williams','Johnson','Davis','Brown','Wilson','Jones','Miller','Moore','Taylor','Anderson','Thomas','Jackson','White','Harris','Martin','Garcia','Young','Robinson','Walker','Allen','Scott','Carter','Mitchell','Perez','Roberts','Evans','Turner','Collins','Parker','Edwards','Stewart','Morris'];
+const POSITIONS = ['PG','SG','SF','PF','C'];
+let currentProspects = [];
+let selectedProspect = null;
+let selectedPickIdx = null;
+
+function genProspects(){
+  currentProspects = [];
+  const used = new Set();
+  for(let i=0;i<10;i++){
+    let name;
+    do {
+      name = FIRST_NAMES[Math.floor(Math.random()*FIRST_NAMES.length)]+' '+LAST_NAMES[Math.floor(Math.random()*LAST_NAMES.length)];
+    } while(used.has(name));
+    used.add(name);
+    const pos = POSITIONS[Math.floor(Math.random()*POSITIONS.length)];
+    const age = 18 + Math.floor(Math.random()*5);
+    // OVR based on pick round
+    const baseOvr = selectedPickIdx!==null && S.draftPicks[selectedPickIdx]?.round==='1st Round' ? 72 : 65;
+    const ovr = baseOvr + Math.floor(Math.random()*12);
+    const potential = ovr + Math.floor(Math.random()*15); // hidden potential shown as +ceiling
+    currentProspects.push({name,pos,age,ovr,potential});
+  }
+}
+
+function renderDraftPage(){
+  // Update pick inventory
+  const pickList = document.getElementById('pickList');
+  const draftControls = document.getElementById('draftControls');
+  const allPicks = [...(S.draftPicks||[])];
+  
+  // Merge in picks from trade history received
+  const histPicks = [];
+  (S.trades||[]).forEach(t=>{
+    (t.recvPicks||[]).forEach(pk=>{
+      if(!S.usedPicks||(!(S.usedPicks||[]).find(u=>u.year===pk.year&&u.round===pk.round&&u.owner===pk.owner))){
+        histPicks.push(pk);
+      }
+    });
+  });
+  
+  const myPicks = [...allPicks, ...histPicks];
+  S.draftPicks = myPicks;
+  
+  if(!myPicks.length){
+    pickList.innerHTML = '<p class="empty">No picks in inventory. Acquire picks through trades.</p>';
+    draftControls.style.display = 'none';
+    return;
+  }
+  draftControls.style.display = '';
+  pickList.innerHTML = myPicks.map((pk,i)=>{
+    const used = (S.usedPicks||[]).find(u=>u.year===pk.year&&u.round===pk.round&&u.owner===pk.owner);
+    return `<span class="pick-tag${used?' used':''}" onclick="${used?'':'selectPick('+i+')'}">${pk.year} ${pk.round} (${pk.owner})</span>`;
+  }).join('');
+  
+  // Render prospects if pick selected
+  if(selectedPickIdx!==null){
+    if(!currentProspects.length) genProspects();
+    renderProspects();
+  }
+  
+  // Draft history
+  const draftHist = document.getElementById('draftHistory');
+  const history = S.draftHistory||[];
+  if(history.length){
+    draftHist.innerHTML = '<h3 style="color:#f5c518;font-size:.9rem;margin-bottom:8px">📜 Draft History</h3>' +
+      history.map(d=>`<div class="trade-item" style="margin-bottom:6px"><span>🎓 ${d.name} (${d.pos}, OVR ${d.ovr}) — ${d.pick}</span><div class="log-meta">${d.date}</div></div>`).join('');
+  }
+}
+
+function selectPick(idx){
+  const used = (S.usedPicks||[]).find((u,i)=>i===idx);
+  if(used) return;
+  selectedPickIdx = idx;
+  currentProspects = [];
+  genProspects();
+  document.querySelectorAll('.pick-tag').forEach((t,i)=>{
+    t.style.borderColor = i===idx ? '#f5c518' : '';
+    t.style.color = i===idx ? '#f5c518' : '';
+  });
+  renderProspects();
+}
+
+function rerollProspects(){
+  if(selectedPickIdx===null) return alert('Select a pick first!');
+  genProspects();
+  renderProspects();
+}
+
+function renderProspects(){
+  const grid = document.getElementById('prospectGrid');
+  grid.innerHTML = currentProspects.map((p,i)=>`
+    <div class="prospect-card${selectedProspect===i?' selected':''}" onclick="selectProspect(${i})">
+      <div class="prospect-name">${p.name}</div>
+      <div class="prospect-pos">${p.pos} · Age ${p.age}</div>
+      <div class="prospect-ovr">OVR ${p.ovr} · Ceiling ${p.potential}</div>
+    </div>
+  `).join('');
+  document.getElementById('draftBtn').disabled = selectedProspect===null;
+}
+
+function selectProspect(i){
+  selectedProspect = i;
+  renderProspects();
+  document.getElementById('draftBtn').disabled = false;
+}
+
+function executeDraft(){
+  if(selectedPickIdx===null||selectedProspect===null) return;
+  const pick = S.draftPicks[selectedPickIdx];
+  const prospect = currentProspects[selectedProspect];
+  
+  // Add to roster
+  S.roster.push({name:prospect.name, pos:prospect.pos, ovr:prospect.ovr});
+  OVR2K[prospect.name] = prospect.ovr;
+  AGES[prospect.name] = prospect.age;
+  
+  // Mark pick used
+  if(!S.usedPicks) S.usedPicks = [];
+  S.usedPicks.push({...pick});
+  S.draftPicks.splice(selectedPickIdx,1);
+  
+  // Log it
+  if(!S.draftHistory) S.draftHistory = [];
+  S.draftHistory.unshift({name:prospect.name,pos:prospect.pos,ovr:prospect.ovr,pick:`${pick.year} ${pick.round}`,date:new Date().toLocaleString()});
+  
+  selectedPickIdx = null;
+  selectedProspect = null;
+  currentProspects = [];
+  
+  save();
+  renderRoster();
+  renderStats();
+  renderDraftPage();
+  alert(`🎓 ${prospect.name} drafted! OVR ${prospect.ovr} ${prospect.pos} added to your roster.`);
 }
 
 function toggleRebuild(){
@@ -449,8 +700,17 @@ function init(){
   });
 
   load();
-  // Restore last page
-  try{const lp=sessionStorage.getItem('nba_page');if(lp&&PAGE_MAP[lp])showPage(lp);}catch(e){}
+  initStartScreen();
+  if(S.careerStarted&&S.team){
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('mainApp').style.display='';
+    document.getElementById('myTeam').value=S.team;
+    renderDraftPage();
+    // Restore last page
+    try{const lp=sessionStorage.getItem('nba_page');if(lp&&PAGE_MAP[lp])showPage(lp);}catch(e){}
+  } else {
+    document.getElementById('mainApp').style.display='none';
+  }
   // Update season badge
   const badge=document.getElementById('seasonBadge');
   if(badge){
