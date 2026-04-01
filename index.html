@@ -82,10 +82,27 @@ input::placeholder{color:#555}
 /* Rebuild mode */
 .rebuild-banner{background:#1a0a00;border:1px solid #f57c00;border-radius:8px;padding:8px 14px;font-size:.82rem;color:#ff9800;margin-bottom:14px;display:none}
 .rebuild-banner.active{display:block}
+
+/* NAV BAR */
+.navbar{position:sticky;top:0;z-index:100;background:#111;border-bottom:1px solid #333;display:flex;gap:0;overflow-x:auto;margin-bottom:20px;padding:0 4px}
+.navbar::-webkit-scrollbar{height:3px}.navbar::-webkit-scrollbar-thumb{background:#333}
+.nav-btn{background:none;border:none;color:#888;padding:12px 16px;font-size:.85rem;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:all .15s;font-weight:600}
+.nav-btn:hover{color:#eee}.nav-btn.active{color:#f5c518;border-bottom-color:#f5c518}
+/* SIM YEAR */
+.sim-card{background:#1a1500;border:1px solid #f57c00;border-radius:12px;padding:20px;margin-bottom:20px}
+.sim-card h2{color:#f5c518;margin-bottom:10px}
+.sim-info{color:#aaa;font-size:.85rem;margin-bottom:14px}
+.season-badge{display:inline-block;background:#2a2000;border:1px solid #f57c00;border-radius:8px;padding:4px 14px;color:#f5c518;font-weight:700;font-size:1rem;margin-bottom:12px}
 </style>
 </head>
 <body>
 <div class="container">
+<nav class="navbar">
+  <button class="nav-btn active" onclick="scrollTo('roster-section')">🏟️ My Team</button>
+  <button class="nav-btn" onclick="scrollTo('trade-section')">🔄 Trade</button>
+  <button class="nav-btn" onclick="scrollTo('sim-section')">📅 Sim Year</button>
+  <button class="nav-btn" onclick="scrollTo('log-section')">📋 History</button>
+</nav>
 <h1>🏀 NBA Trade Machine</h1>
 <p class="subtitle">2025-26 Season · Full Rosters · Draft Picks</p>
 
@@ -96,7 +113,7 @@ input::placeholder{color:#555}
 </div>
 
 <!-- Your Team -->
-<div class="card">
+<div class="card" id="roster-section">
   <h2>🏟️ Your Team <span class="team-rating" id="myTeamRating">—</span></h2>
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
     <select id="myTeam" onchange="loadMyTeam()" style="max-width:280px"><option value="">— Select your team —</option></select>
@@ -108,7 +125,7 @@ input::placeholder{color:#555}
 </div>
 
 <!-- Trade Builder -->
-<div class="card">
+<div class="card" id="trade-section">
   <h2>🔄 Build a Trade</h2>
   <div class="trade-area">
     <!-- SEND -->
@@ -161,7 +178,19 @@ input::placeholder{color:#555}
 </div>
 
 <!-- Trade Log -->
-<div class="card">
+<!-- SIM YEAR -->
+<div class="sim-card" id="sim-section">
+  <h2>📅 Sim Year</h2>
+  <div class="season-badge" id="seasonBadge">2025-26 Season</div>
+  <div class="sim-info">Simulate one NBA season — all player ages increase by 1. Young players develop, veterans decline. Your roster and all 30 teams update automatically.</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <button class="btn" onclick="simYear()" style="background:#f57c00;color:#fff">⏭️ Simulate 1 Year</button>
+    <span id="simYearCount" style="color:#888;font-size:.82rem"></span>
+  </div>
+  <div id="simLog" style="margin-top:12px;font-size:.82rem;color:#aaa"></div>
+</div>
+
+<div class="card" id="log-section">
   <h2>📋 Trade History</h2>
   <div id="tradeLog"><p class="empty">No trades yet — start rebuilding!</p></div>
   <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
@@ -290,12 +319,77 @@ const OVR2K = {
 };
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let S = {team:"",roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false};
+let S = {team:"",roster:[],trades:[],sending:[],sendPicks:[],receiving:[],recvPicks:[],rebuildMode:false,season:2026,yearsSimmed:0};
 const KEY = "nba_tm_v3";
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const load=()=>{try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r);}catch(e){}};
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+// ── SCROLL NAV ────────────────────────────────────────────────────────────────
+function scrollTo(id){
+  const el=document.getElementById(id);
+  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.nav-btn').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('onclick')===`scrollTo('${id}')`);
+  });
+}
+
+// ── SIM YEAR ──────────────────────────────────────────────────────────────────
+function simYear(){
+  if(!confirm('Simulate 1 full season? All player ages increase by 1 and ratings shift.')) return;
+  S.season = (S.season||2026) + 1;
+  S.yearsSimmed = (S.yearsSimmed||0) + 1;
+
+  const log = [];
+  let developed=0, declined=0;
+
+  // Age up ALL players in TEAMS (the global roster database)
+  Object.keys(TEAMS).forEach(team=>{
+    TEAMS[team].forEach(p=>{
+      const curAge = (AGES[p.name]||27) + S.yearsSimmed - 1;
+      const newAge = curAge + 1;
+      // Update AGES
+      AGES[p.name] = newAge;
+      // Update OVR2K based on age trajectory
+      const curOvr = OVR2K[p.name]||p.ovr;
+      let delta = 0;
+      if(newAge <= 24) delta = Math.floor(Math.random()*3); // young: +0 to +2
+      else if(newAge <= 27) delta = Math.floor(Math.random()*2); // peak approach: +0 to +1
+      else if(newAge <= 30) delta = Math.random()<0.3?-1:0; // peak: slight decline risk
+      else if(newAge <= 33) delta = Math.random()<0.5?-1:(Math.random()<0.2?-2:0); // decline
+      else delta = Math.random()<0.7?-1:(Math.random()<0.4?-2:0); // steep decline
+      
+      const newOvr = Math.max(60, Math.min(99, curOvr+delta));
+      OVR2K[p.name] = newOvr;
+      p.ovr = newOvr;
+      if(delta>0){developed++;log.push(`📈 ${p.name} (${team}): ${curOvr}→${newOvr}`);}
+      else if(delta<0){declined++;log.push(`📉 ${p.name} (${team}): ${curOvr}→${newOvr}`);}
+    });
+  });
+
+  // Also update YOUR roster
+  S.roster.forEach(p=>{
+    const curAge = AGES[p.name]||27;
+    p.ovr = OVR2K[p.name]||p.ovr;
+  });
+
+  // Update UI
+  const badge=document.getElementById('seasonBadge');
+  badge.textContent=`${S.season-1}-${String(S.season).slice(2)} Season`;
+  const count=document.getElementById('simYearCount');
+  count.textContent=`${S.yearsSimmed} year${S.yearsSimmed!==1?'s':''} simmed`;
+  
+  // Show log (just notable changes)
+  const simLog=document.getElementById('simLog');
+  const notable = log.slice(0,12);
+  simLog.innerHTML = notable.length ? `<strong>Notable changes:</strong><br>${notable.join('<br>')}${log.length>12?`<br>...and ${log.length-12} more`:''}`:'No major changes this year.';
+
+  save();
+  renderRoster();
+  renderStats();
+  alert(`✅ Season simmed! ${developed} players improved, ${declined} declined. Welcome to ${S.season-1}-${String(S.season).slice(2)}!`);
+}
+
 function toggleRebuild(){
   S.rebuildMode=!S.rebuildMode;
   const btn=document.getElementById('rebuildBtn');
@@ -337,6 +431,14 @@ function init(){
   });
 
   load();
+  // Update season badge
+  const badge=document.getElementById('seasonBadge');
+  if(badge){
+    const s=S.season||2026;
+    badge.textContent=`${s-1}-${String(s).slice(2)} Season`;
+  }
+  const sc=document.getElementById('simYearCount');
+  if(sc&&S.yearsSimmed>0)sc.textContent=`${S.yearsSimmed} year${S.yearsSimmed!==1?'s':''} simmed`;
   if(S.team){
     document.getElementById('myTeam').value=S.team;
     renderRoster();renderSend();renderRecv();renderLog();renderStats();
